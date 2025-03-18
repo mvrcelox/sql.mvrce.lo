@@ -15,14 +15,15 @@ import { Input } from "@/app/components/ui/input";
 import Label from "@/app/components/ui/label";
 import { Separator } from "@/app/components/ui/separator";
 import { createDatabase, testDatabase } from "@/models/databases";
-import DatabaseSchema, { DatabaseInput, DatabaseOutput } from "@/validators/database";
+import DatabaseSchema, { CredentialsSchema, DatabaseInput, DatabaseOutput } from "@/validators/database";
 import { useMutation } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { ClipboardPaste, Loader2 } from "lucide-react";
 import { FieldErrors, FormProvider, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
 import { useState } from "react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/app/components/ui/tooltip";
 
 type Props = React.PropsWithChildren & {
    onSuccess?: () => unknown;
@@ -41,6 +42,7 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
       getValues,
       handleSubmit,
       register,
+      setValue,
       trigger,
       reset,
    } = form;
@@ -89,6 +91,52 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
       toast.error(`Error on field "${entries[0][0]}": ${entries[0][1].message}.`);
    }
 
+   async function handlePaste() {
+      const clipboard = await navigator.clipboard.readText();
+      if (!clipboard) {
+         toast.error("Clipboard is empty");
+         return;
+      }
+
+      const matched = clipboard.match(
+         // @ts-expect-error typescript doesn't understand the regex
+         /(?<protocol>\w+(?=:\/{2}))?(?::\/{2})?(?<username>\w+?(?=:[^@\/]))\:(?<password>[^@]+?(?=@))(?:@)(?<host>.*?(?=\:|\/))(?<port>:\d+(?=\/))?(?:\/)(?<database>[^?]+(?=$|(\?.*)?))/,
+      );
+      if (!matched) {
+         toast.error("URL doesn't match the expected pattern.");
+         return;
+      }
+
+      const res: Record<string, string | number | undefined> = {};
+
+      if (matched?.groups?.protocol && !["postgresql", "postgres"].includes(matched?.groups?.protocol)) {
+         toast.error("Not supported database protocol.");
+         return;
+      }
+
+      res["host"] = matched?.groups?.host;
+      res["port"] = matched?.groups?.port?.replace(/[^0-9]/g, "") || 5432;
+      res["database"] = matched?.groups?.database;
+      res["username"] = matched?.groups?.username;
+      res["password"] = matched?.groups?.password;
+
+      const safe = await CredentialsSchema.safeParseAsync(res);
+      if (!safe.success) {
+         const issue = safe.error.issues[0];
+         toast.error(
+            "Invalid database credentials" +
+               (process.env.NODE_ENV === "development" ? ` - ${issue.path.join(".")}: ${issue.message}` : ""),
+         );
+         return;
+      }
+
+      setValue("host", safe.data.host);
+      setValue("port", safe.data.port);
+      setValue("database", safe.data.database);
+      setValue("username", safe.data.username);
+      setValue("password", safe.data.password);
+   }
+
    return (
       <Dialog open={open} onOpenChange={setOpen}>
          <DialogTrigger asChild>{children}</DialogTrigger>
@@ -112,7 +160,33 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
                         />
                      </div>
 
-                     <Separator className="-mx-4 my-2" />
+                     <Separator className="-mx-4 my-4" />
+                     <TooltipProvider delayDuration={0} disableHoverableContent>
+                        <Tooltip>
+                           <TooltipTrigger asChild>
+                              <Button
+                                 intent="outline"
+                                 size="icon"
+                                 className="-my-5 ml-auto size-8 -translate-y-5"
+                                 onClick={handlePaste}
+                              >
+                                 <span className="sr-only">Paste database url</span>
+                                 <ClipboardPaste className="size-4 shrink-0" />
+                              </Button>
+                           </TooltipTrigger>
+                           <TooltipContent className="flex flex-col">
+                              <span className="text-background">Paste database URL</span>
+                              {/* <span className="text-background text-xs opacity-70">
+                                          The database has to been in your clipboard
+                                       </span> */}
+                           </TooltipContent>
+                        </Tooltip>
+                     </TooltipProvider>
+                     {/* <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-gray-600">Credentials</span>
+                        <div className="flex items-center gap-2">
+                        </div>
+                     </div> */}
 
                      <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-4">
                         <div className="grid grid-cols-1 gap-1 sm:col-span-3">
@@ -178,6 +252,7 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
                            />
                         </div>
                      </div>
+
                      <div className="-m-4 mt-2 border-t">
                         <DialogFooter className="flex-row justify-between">
                            <DialogClose asChild>

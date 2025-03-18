@@ -3,9 +3,13 @@ import { expand } from "dotenv-expand";
 import { defineConfig } from "drizzle-kit";
 
 expand(
-   config({
-      path: ".env.development",
-   }),
+   config(
+      process.env.NODE_ENV === "development"
+         ? {
+              path: ".env.development",
+           }
+         : undefined,
+   ),
 );
 
 export default defineConfig({

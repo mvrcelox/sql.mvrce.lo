@@ -1,11 +1,13 @@
 @import "tailwindcss";
 
 @theme {
+   --breakpoint-xxs: 320px;
    --breakpoint-xs: 448px;
    --color-background: var(--background);
    --color-high-contrast: var(--high-contrast);
    --color-foreground: var(--foreground);
    --color-border: var(--gray-300);
+   --color-gray-50: var(--gray-50);
    --color-gray-100: var(--gray-100);
    --color-gray-200: var(--gray-200);
    --color-gray-300: var(--gray-300);
@@ -15,6 +17,7 @@
    --color-gray-700: var(--gray-700);
    --color-gray-800: var(--gray-800);
    --color-gray-900: var(--gray-900);
+   --color-gray-950: var(--gray-950);
    --color-primary: #0d59f2;
    --color-primary-hover: hsl(220, 95%, 55%);
    --font-geist-sans: var(--font-geist-sans);
@@ -46,6 +49,7 @@
    --background: #fff;
    --high-contrast: #000;
    --foreground: oklch(0.21 0.034 264.665);
+   --gray-50: oklch(0.985 0.002 247.839);
    --gray-100: oklch(0.967 0.003 264.542);
    --gray-200: oklch(0.928 0.006 264.531);
    --gray-300: oklch(0.872 0.01 258.338);
@@ -55,12 +59,14 @@
    --gray-700: oklch(0.373 0.034 259.733);
    --gray-800: oklch(0.278 0.033 256.848);
    --gray-900: oklch(0.21 0.034 264.665);
+   --gray-950: oklch(0.13 0.028 261.692);
 }
 
 .dark {
    --background: #000;
    --high-contrast: #fff;
    --foreground: oklch(0.967 0.001 286.375);
+   --gray-50: oklch(0.141 0.005 285.823);
    --gray-100: oklch(0.21 0.006 285.885);
    --gray-200: oklch(0.274 0.006 286.033);
    --gray-300: oklch(0.37 0.013 285.805);
@@ -70,6 +76,7 @@
    --gray-700: oklch(0.871 0.006 286.286);
    --gray-800: oklch(0.92 0.004 286.32);
    --gray-900: oklch(0.967 0.001 286.375);
+   --gray-950: oklch(0.985 0 0);
 }
 
 @layer utilities {

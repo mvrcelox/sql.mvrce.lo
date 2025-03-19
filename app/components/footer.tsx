@@ -21,7 +21,7 @@ export function Footer({
             <span>0001</span>
          </div>
          <div className="shrink-0 grow"></div>
-         <ThemeToggle className="shrink-0 border-0 [&>button]:size-[2rem] md:[&>button]:size-[2.5rem]" />
+         <ThemeToggle className="shrink-0 border-0 [&>button]:size-6 [&>button]:rounded-sm md:[&>button]:size-8 md:[&>button]:rounded-[3px]" />
          <Link
             href="https://github.com/mvrcelitos"
             target="_blank"

@@ -29,7 +29,10 @@ export const ThemeToggle = ({ layoutGroupId, className, size = "md", ...props }:
    const { theme: currentTheme, setTheme } = useTheme();
 
    return (
-      <div className={cn("bg-rgb-50 overflow-hidden border leading-none", className)} {...props}>
+      <div
+         className={cn("group/container overflow-hidden border bg-gray-100/50 p-1 leading-none", className)}
+         {...props}
+      >
          <LayoutGroup id={layoutGroupId}>
             {themes.map((theme) => {
                const Icon = theme.icon;
@@ -41,17 +44,14 @@ export const ThemeToggle = ({ layoutGroupId, className, size = "md", ...props }:
                      aria-selected={isSelected || undefined}
                      intent="ghost"
                      size="icon"
-                     className={cn(
-                        "aria-selected:text-foreground relative h-full rounded-none !bg-transparent",
-                        sizes[size],
-                     )}
+                     className={cn("aria-selected:text-foreground relative !bg-transparent", sizes[size])}
                      onClick={() => setTheme(theme.value)}
                   >
                      {isSelected ? (
                         <motion.span
                            transition={{ duration: 0.15 }}
                            layoutId="theme-toggle-selector"
-                           className="absolute inset-0 block h-full w-full bg-gray-200"
+                           className="absolute inset-0 block h-full w-full rounded-[inherit] bg-gray-200"
                         />
                      ) : null}
                      <span className="sr-only">

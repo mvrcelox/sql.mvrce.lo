@@ -3,7 +3,7 @@
 import { DataTableColumnHeader } from "@/app/components/data-table-column-header";
 import { Table, TBody, Td, Th, THead, TRow } from "@/app/components/ui/table";
 import { cn } from "@/lib/utils";
-import { CircleSlash, Redo, RotateCcw, Undo } from "lucide-react";
+import { CircleCheck, CircleDashed, CircleSlash, Redo, RotateCcw, Undo } from "lucide-react";
 import { FieldDef } from "pg";
 
 import {
@@ -48,6 +48,7 @@ export interface DataTableProps {
    fields?: FieldDef[];
    rows?: Record<string, unknown>[];
    defaultHeader?: boolean;
+   editable?: boolean;
 }
 
 interface TableCellFormatterReturn {
@@ -108,9 +109,11 @@ const columnResizeDirection = "ltr" satisfies ColumnResizeDirection;
 function Cell({
    name,
    row,
+   editable,
 }: {
    type?: string;
    name: string;
+   editable?: boolean;
    row: { original: unknown; getValue: (name: string) => string };
 }) {
    const inputRef = useRef<HTMLInputElement | null>(null);
@@ -142,7 +145,6 @@ function Cell({
       // if the undo has no changes from actual value
       if (previewUndo === initialValue) {
          if (!scriptId.current) return;
-
          // Clear the current script on sql editor and their id stored
          removeScript(scriptId.current);
          scriptId.current = undefined;
@@ -159,10 +161,12 @@ function Cell({
             scriptId.current = undefined;
             switch (method) {
                case "run": {
+                  console.log("running");
                   reset(previewUndo!);
                   break;
                }
                case "clear": {
+                  console.log("clearing");
                   reset();
                   break;
                }
@@ -194,10 +198,12 @@ function Cell({
             scriptId.current = undefined;
             switch (method) {
                case "run": {
+                  console.log("running");
                   reset(previewRedo!);
                   break;
                }
                case "clear": {
+                  console.log("clearing");
                   reset();
                   break;
                }
@@ -208,7 +214,7 @@ function Cell({
 
    function reset(value?: typeof initialValue) {
       _reset(value);
-      if ((canUndo || canRedo) && scriptId.current) removeScript(scriptId.current);
+      if (scriptId.current) removeScript(scriptId.current);
    }
 
    function getSQL(current: string) {
@@ -262,12 +268,14 @@ function Cell({
    function handleOnBlur(current: string | null) {
       let sql = "";
 
+      if (current === value) return;
       if (current === initialValue) {
+         setValue(current);
          if (scriptId.current) {
             removeScript(scriptId.current);
             scriptId.current = undefined;
          }
-         return current;
+         return;
       }
 
       if (current === null) sql = `NULL`;
@@ -338,10 +346,12 @@ function Cell({
             scriptId.current = undefined;
             switch (method) {
                case "run": {
+                  console.log("running");
                   reset(current);
                   break;
                }
                case "clear": {
+                  console.log("clearing");
                   reset();
                   break;
                }
@@ -355,10 +365,12 @@ function Cell({
          scriptId.current = undefined;
          switch (method) {
             case "run": {
+               console.log("running");
                reset(current);
                break;
             }
             case "clear": {
+               console.log("clearing");
                reset();
                break;
             }
@@ -366,7 +378,7 @@ function Cell({
       });
       scriptId.current = uuid;
 
-      return current;
+      return;
    }
 
    useEffect(() => {
@@ -376,44 +388,60 @@ function Cell({
 
    return (
       <ContextMenu>
-         <span className={"invisible block w-full px-2 whitespace-pre"}>{value}</span>
-         <ContextMenuTrigger asChild>
-            <Input
-               ref={inputRef}
-               intent="none"
-               size="none"
-               data-changed={value != initialValue}
-               onBlur={(e) => {
-                  // Always handle blur since !isTrusted is unreliable
-                  handleOnBlur(e.currentTarget.value);
-               }}
-               onKeyDown={(e) => {
-                  // if (e.key === "Z")
-                  if (e.key === "Escape") {
-                     e.currentTarget.value = value ?? "";
-                     e.currentTarget.blur();
-                  }
-                  if (e.key === "Enter" && !e.ctrlKey) {
-                     e.currentTarget.blur();
-                  }
-               }}
-               className={cn(
-                  "data-[changed='true']:!bg-primary/10 absolute inset-0 h-full w-full rounded-none px-2 overflow-ellipsis",
-                  value === null
-                     ? "placeholder-shown:not-focus:text-center placeholder-shown:focus:placeholder:text-transparent"
-                     : "",
-               )}
-               placeholder={value === null ? "[NULL]" : undefined}
-               defaultValue={value ?? ""}
-            />
-         </ContextMenuTrigger>
+         <span className={cn("block w-full px-2 whitespace-pre", editable && "invisible")}>{value}</span>
+         {editable ? (
+            <ContextMenuTrigger asChild>
+               <Input
+                  ref={inputRef}
+                  intent="none"
+                  size="none"
+                  data-changed={value != initialValue}
+                  onBlur={(e) => {
+                     // Always handle blur since !isTrusted is unreliable
+                     handleOnBlur(e.currentTarget.value);
+                  }}
+                  onKeyDown={(e) => {
+                     // if (e.key === "Z")
+                     if (e.key === "Escape") {
+                        e.currentTarget.value = value ?? "";
+                        e.currentTarget.blur();
+                     }
+                     if (e.key === "Enter" && !e.ctrlKey) {
+                        e.currentTarget.blur();
+                     }
+                  }}
+                  className={cn(
+                     "data-[changed='true']:!bg-primary/10 absolute inset-0 h-full w-full rounded-none px-2 overflow-ellipsis",
+                     value === null
+                        ? "placeholder-shown:not-focus:text-center placeholder-shown:focus:placeholder:text-transparent"
+                        : "",
+                  )}
+                  placeholder={value === null ? "[NULL]" : undefined}
+                  defaultValue={value ?? ""}
+               />
+            </ContextMenuTrigger>
+         ) : null}
          <ContextMenuContent onCloseAutoFocus={(e) => e.preventDefault()}>
             <ContextMenuLabel>Actions</ContextMenuLabel>
 
             <ContextMenuItem disabled={value === null} onSelect={() => handleOnBlur(null)} className="gap-2">
-               <CircleSlash className="size-4 shrink-0" />
+               <CircleDashed className="size-4 shrink-0" />
                Set null
             </ContextMenuItem>
+            {formatted.type === "boolean" ? (
+               <ContextMenuItem
+                  disabled={value === null}
+                  onSelect={() => handleOnBlur(value === "true" ? "false" : "true")}
+                  className="gap-2"
+               >
+                  {value === "true" ? (
+                     <CircleSlash className="size-4 shrink-0" />
+                  ) : (
+                     <CircleCheck className="size-4 shrink-0" />
+                  )}
+                  Set {value === "true" ? "false" : "true"}
+               </ContextMenuItem>
+            ) : null}
             <ContextMenuSeparator />
             <ContextMenuItem
                disabled={!canUndo}
@@ -448,7 +476,7 @@ function Cell({
    );
 }
 
-export const DataTable = ({ fields = [], rows = [] }: DataTableProps) => {
+export const DataTable = ({ fields = [], rows = [], editable = true }: DataTableProps) => {
    const [hidden] = useQueryState(
       "hide",
       parseAsArrayOf(parseAsString).withDefault([]).withOptions({
@@ -483,7 +511,7 @@ export const DataTable = ({ fields = [], rows = [] }: DataTableProps) => {
                   ({
                      accessorKey: field.name,
                      cell: ({ row }: { row: { original: unknown; getValue: (name: string) => string } }) => (
-                        <Cell name={field.name} row={row} />
+                        <Cell name={field.name} row={row} editable={editable} />
                      ),
                      header: field.name,
                      enableHiding: true,

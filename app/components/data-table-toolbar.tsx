@@ -120,7 +120,7 @@ function HiddenColumnsButton() {
             <Tooltip>
                <TooltipTrigger asChild>
                   <DropdownMenuTrigger asChild>
-                     <Button intent="ghost" size="icon" className="size-8">
+                     <Button intent="ghost" size="icon" className="size-8 aria-expanded:bg-gray-200">
                         <Eye className="size-4 shrink-0" />
                      </Button>
                   </DropdownMenuTrigger>
@@ -252,7 +252,12 @@ function ExportButton({ type }: ExportButtonProps) {
             <Tooltip>
                <TooltipTrigger asChild>
                   <DropdownMenuTrigger asChild>
-                     <Button disabled={isExportingToTypescript} intent="ghost" size="icon" className="size-8">
+                     <Button
+                        disabled={isExportingToTypescript}
+                        intent="ghost"
+                        size="icon"
+                        className="size-8 aria-expanded:bg-gray-200"
+                     >
                         {isExportingToTypescript || isExportingToZodObject ? (
                            <Loader2 className="size-4 shrink-0 animate-spin" />
                         ) : (

@@ -1,48 +1,47 @@
 "use client";
 
-import assert from "assert";
-import { useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 export function useHistoryState<T>(initialValue: T) {
-   const defaultValue = useRef<T>(initialValue);
-
-   const [history, setHistory] = useState<T[]>([defaultValue.current]);
+   const [history, setHistory] = useState<T[]>([initialValue]);
    const [index, setIndex] = useState<number>(0);
+   const initialValueState = useMemo(() => history[0], [history]);
 
-   function reset(value?: T) {
-      assert(typeof value !== typeof initialValue, "Reset with a different type");
-      const h = value ? [value] : history.slice(0, 1);
-      setHistory(h);
+   const reset = useCallback((value?: T) => {
+      setHistory(value ? [value] : (h) => [...h.slice(0, 1)]);
       setIndex(0);
-   }
+   }, []);
 
    const value = history[index];
-   function setValue(value: T) {
-      const h = [...history.slice(0, index + 1), value];
-      setHistory(h);
-      setIndex(h.length - 1);
-   }
+   const setValue = useCallback(
+      (value: T) => {
+         const h = JSON.parse(JSON.stringify(history)).slice(0, index + 1);
+         h.push(value);
+         setHistory(h);
+         setIndex(h.length - 1);
+      },
+      [history, index],
+   );
 
-   const canUndo = index > 0;
+   const canUndo = useMemo(() => index > 0, [index]);
    const previewUndo = canUndo ? history[index - 1] : undefined;
-   const undo = () => {
+   const undo = useCallback(() => {
       const i = Math.max(index - 1, 0);
       setIndex(i);
-      return history[i];
-   };
+   }, [index]);
 
    const canRedo = index < history.length - 1;
    const previewRedo = canRedo ? history[index + 1] : undefined;
-   function redo() {
+   const redo = useCallback(() => {
       const i = Math.min(index + 1, history.length - 1);
       setIndex(i);
-      return history[i];
-   }
+   }, [history, index]);
 
    return {
+      history,
       value,
       setValue,
-      initialValue: history[0],
+      initialValue: initialValueState,
       previewUndo,
       canUndo,
       undo,

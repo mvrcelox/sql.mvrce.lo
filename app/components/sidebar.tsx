@@ -51,7 +51,7 @@ const Sidebar = exportAsClient(function () {
             ease: "circInOut",
             duration: sidebarAnimationDuration,
          }}
-         className="sticky top-0 z-[3] flex flex-col self-stretch bg-gray-100"
+         className="sticky top-0 z-[3] flex flex-col self-stretch bg-gray-100/50"
       >
          <div className="bg-background grid w-[calc(2.5rem+1px)] place-items-center border-r border-b py-2">
             <Logo className="size-6" />

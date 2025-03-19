@@ -66,10 +66,7 @@ const DialogBody = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement
 
 const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
    <div
-      className={cn(
-         "flex flex-col-reverse gap-2 rounded-b-[inherit] bg-gray-100 px-4 py-3 not-first:border-t md:flex-row",
-         className,
-      )}
+      className={cn("flex flex-row-reverse gap-2 rounded-b-[inherit] bg-gray-100 p-3 not-first:border-t", className)}
       {...props}
    />
 );

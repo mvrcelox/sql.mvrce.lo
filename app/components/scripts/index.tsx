@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 import { Dialog, DialogBody, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 import Button from "../ui/button";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, Copy, Loader2 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { TextArea } from "../ui/textarea";
 import { queryDatabase } from "@/models/databases";
@@ -83,7 +83,7 @@ export default function ScriptsProvider({ children }: React.PropsWithChildren) {
       const databaseId = databaseRef.current;
       if (!databaseId) {
          toast.error("Database wasn't selected");
-         return false;
+         return;
       }
 
       try {
@@ -97,10 +97,10 @@ export default function ScriptsProvider({ children }: React.PropsWithChildren) {
          copy[databaseIndex].scripts[scriptIndex] = { sql, id: scriptId, callback };
 
          setDatabases(copy);
-         return true;
+         return databases[databaseIndex].scripts[scriptIndex].id;
       } catch (error) {
          toast.error(error as string);
-         return false;
+         return;
       }
    };
 
@@ -157,16 +157,16 @@ export default function ScriptsProvider({ children }: React.PropsWithChildren) {
 
          setOpen(false);
          setDatabases((database) => database.filter((y) => y.databaseId != databaseId));
-         revalidate(window.location.pathname);
 
          // Find the current database in databases to clear their scripts
          const index = databases.findIndex((database) => database.databaseId === databaseId);
          if (index === -1) return;
 
          for (const script of databases[index].scripts) {
-            if (!("callback" in script) || typeof script.callback !== "function") continue;
+            if (typeof script?.callback !== "function") continue;
             script.callback?.("run");
          }
+         revalidate(window.location.pathname);
       },
    });
 
@@ -192,13 +192,35 @@ export default function ScriptsProvider({ children }: React.PropsWithChildren) {
                   <DialogTitle>Scripts editor</DialogTitle>
                </DialogHeader>
                <DialogBody>
-                  <TextArea
-                     readOnly
-                     defaultValue={script}
-                     className="modern-scroll w-full resize-none whitespace-pre"
-                  />
+                  <TextArea readOnly defaultValue={script} className="scroll w-full resize-none whitespace-pre" />
                </DialogBody>
-               <DialogFooter className="justify-between">
+               <DialogFooter className="xs:flex-row-reverse xs:justify-between flex-col">
+                  <div className="xxs:flex-row-reverse xxs:items-center flex flex-col gap-2">
+                     <Button
+                        disabled={isRunning}
+                        intent="primary"
+                        className="xxs:max-xs:grow gap-2"
+                        onClick={() => run(script)}
+                     >
+                        Run
+                        {isRunning ? (
+                           <Loader2 className="size-4 shrink-0 animate-spin" />
+                        ) : (
+                           <ArrowRight className="size-4 shrink-0" />
+                        )}
+                     </Button>
+                     <Button
+                        intent="outline"
+                        className="gap-2 bg-gray-50"
+                        onClick={() => {
+                           navigator.clipboard.writeText(currentDatabaseScript);
+                           toast("Script copied to clipboard");
+                        }}
+                     >
+                        <Copy className="size-4 shrink-0" />
+                        Copy
+                     </Button>
+                  </div>
                   <Button
                      intent="ghost"
                      onClick={() => {
@@ -207,26 +229,6 @@ export default function ScriptsProvider({ children }: React.PropsWithChildren) {
                   >
                      Discard
                   </Button>
-                  <div className="flex items-center gap-2">
-                     <Button
-                        intent="outline"
-                        className="bg-background"
-                        onClick={() => {
-                           navigator.clipboard.writeText(currentDatabaseScript);
-                           toast("Script copied to clipboard");
-                        }}
-                     >
-                        Copy
-                     </Button>
-                     <Button disabled={isRunning} intent="primary" className="gap-2" onClick={() => run(script)}>
-                        Run
-                        {isRunning ? (
-                           <Loader2 className="size-4 shrink-0 animate-spin" />
-                        ) : (
-                           <ArrowRight className="size-4 shrink-0" />
-                        )}
-                     </Button>
-                  </div>
                </DialogFooter>
             </DialogContent>
          </Dialog>

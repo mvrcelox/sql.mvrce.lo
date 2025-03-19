@@ -8,7 +8,7 @@ export interface ScriptsContextProps {
    clearScripts: () => void;
 
    appendScript: (sql: string, callback?: CallbackFn | undefined) => string | undefined;
-   updateScript: (sql: string, scriptId: string, callback?: CallbackFn | undefined) => boolean;
+   updateScript: (sql: string, scriptId: string, callback?: CallbackFn | undefined) => string | undefined;
    removeScript: (scriptId: string) => void | undefined;
 
    show: () => void;

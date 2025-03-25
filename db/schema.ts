@@ -83,6 +83,7 @@ export const databasesTable = pgTable(
       database: varchar({ length: 255 }).notNull(),
       username: varchar({ length: 255 }).notNull(),
       password: varchar({ length: 255 }).notNull().default(""),
+      ssl: boolean().notNull().default(false),
       status: integer().notNull().default(1),
    },
    (table) => [index("owner_idx").on(table.owner_id)],

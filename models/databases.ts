@@ -1,6 +1,6 @@
 "use server";
 
-import { DatabaseSchema } from "@/validators/database";
+import { CredentialsSchema, DatabaseSchema } from "@/validators/database";
 import { authedProcedure } from "./auth";
 import db from "@/db";
 import { databasesTable } from "@/db/schema";
@@ -259,28 +259,23 @@ export const getDatabaseProperties = authedProcedure
 // Anonymous actions
 
 export const testDatabase = createServerAction()
-   .input(
-      z.object({
-         ...DatabaseSchema.shape,
-         name: z.string().max(64, "Too large"),
-      }),
-   )
+   .input(CredentialsSchema)
    .onInputParseError(async (error) => {
       console.error(error);
       throw new BadRequestError("Invalid database!");
    })
    .handler(async ({ input }) => {
-      const { connection, ...credentials } = input;
-      if (connection === 1) {
-      }
+      // if (connection === 1) {
+      // }
       const client = new Client({
-         host: credentials.host,
-         port: credentials.port,
-         database: credentials.database,
-         user: credentials.username,
-         password: credentials.password,
+         host: input.host,
+         port: input.port,
+         database: input.database,
+         user: input.username,
+         password: input.password,
          application_name: config.fullName,
          connectionTimeoutMillis: 10_000,
+         ssl: input.ssl,
       });
 
       try {

@@ -1,6 +1,7 @@
 import "server-only";
+
 import config from "@/config/site";
-import { MethodNotAllowedError, NotFoundError } from "@/infra/errors";
+import { BadRequestError, MethodNotAllowedError, NotFoundError } from "@/infra/errors";
 import { CredentialsInput, CredentialsSchema } from "@/validators/database";
 import { Client, FieldDef } from "pg";
 
@@ -26,9 +27,13 @@ class PSQLDatabase<TStatus extends Status = "disconnected"> implements IDatabase
    private client: Client;
 
    constructor(credentials: CredentialsInput) {
-      const { username, ...c } = credentials;
+      const { username } = credentials;
+
+      const safe = CredentialsSchema.safeParse(credentials);
+      if (!safe.success) throw new BadRequestError("Invalid credentials: " + safe.error.message);
+
       this.client = new Client({
-         ...c,
+         ...safe.data,
          user: username,
          application_name: config.fullName,
          connectionTimeoutMillis: 10_000,
@@ -37,6 +42,10 @@ class PSQLDatabase<TStatus extends Status = "disconnected"> implements IDatabase
 
    public async connect(): Promise<IDatabase<"connected">> {
       if (!this.client) throw new NotFoundError(`Client doesn't exist. Try re-creating the database`);
+
+      if (!(this.client instanceof Client)) throw new Error("Client is not an instance of pg.Client");
+      console.log(this.client);
+      console.log("connect" in this.client);
 
       await this.client.connect();
       this.status = "connected" as TStatus;

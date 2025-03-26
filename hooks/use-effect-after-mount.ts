@@ -10,5 +10,6 @@ export default function useEffectAfterMount(fn: () => void, deps: unknown[] = []
       }
 
       fn();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
    }, deps);
 }

@@ -9,8 +9,6 @@ import { and, asc, desc, eq } from "drizzle-orm";
 import { GetTableParams } from "@/validators/_default";
 import { createServerAction } from "zsa";
 import { z } from "zod";
-import { Client } from "pg";
-import config from "@/config/site";
 import tryCatch from "@/helpers/try-catch";
 import { createPSQLDatabase } from "@/lib/database-factory";
 

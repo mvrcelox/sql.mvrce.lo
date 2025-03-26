@@ -49,7 +49,7 @@ function RefreshButton() {
             <TooltipTrigger asChild>
                <Button intent="ghost" size="sm" className="gap-2 px-2" onClick={() => router.refresh()}>
                   <RefreshCw className="size-4 shrink-0" />
-                  Refresh
+                  <span className="hidden md:inline">Refresh</span>
                </Button>
             </TooltipTrigger>
             <TooltipContent>Refresh the rows</TooltipContent>
@@ -363,7 +363,7 @@ function LimitInput() {
                      aria-label="numeric"
                      inputMode="numeric"
                      pattern="[0-9]*"
-                     className=""
+                     className="shrink-0"
                      defaultValue={limit}
                      onKeyDown={(e) => {
                         if (e.key === "Escape") {

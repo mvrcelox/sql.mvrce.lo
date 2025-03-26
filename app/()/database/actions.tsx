@@ -1,15 +1,14 @@
 "use server";
 
-import pg from "pg";
 import { z } from "zod";
 
 import { authedProcedure } from "@/models/auth";
 import db from "@/db";
-import config from "@/config/site";
 import { databasesTable } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { InternalServerError, NotFoundError } from "@/infra/errors";
 import tryCatch from "@/helpers/try-catch";
+import { createPSQLDatabase } from "@/lib/database-factory";
 
 export const connectToDatabase = authedProcedure
    .input(z.number().min(1, "Invalid database ID"))
@@ -25,16 +24,7 @@ export const connectToDatabase = authedProcedure
 
       const database = databases[0];
 
-      const client = new pg.Client({
-         host: database.host,
-         port: database.port,
-         database: database.database,
-         user: database.username,
-         password: database.password ?? "",
-         application_name: config.fullName,
-         // Not trying to connect infinitely.
-         connectionTimeoutMillis: 10_000,
-      });
+      const client = createPSQLDatabase(database);
 
       try {
          await client.connect();

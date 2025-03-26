@@ -125,17 +125,7 @@ export const connectDatabase = authedProcedure.input(z.number().min(1, "Invalid 
    const [found, error] = await findDatabase(input);
 
    if (error) throw new InternalServerError({ cause: error });
-
-   const { host, port, database, username, password } = found;
-   const client = new Client({
-      host,
-      port,
-      database: database,
-      user: username,
-      password,
-      application_name: config.fullName,
-      connectionTimeoutMillis: 10_000,
-   });
+   const client = createPSQLDatabase(found);
 
    try {
       await client?.connect();
@@ -187,16 +177,7 @@ export const getConnection = authedProcedure.input(z.number().min(1, "Invalid ID
    const [found, error] = await findDatabase(input);
    if (error) throw new InternalServerError({ cause: error });
 
-   const { host, port, database, username, password } = found;
-   const client = new Client({
-      host,
-      port,
-      database,
-      user: username,
-      password,
-      application_name: config.fullName,
-      connectionTimeoutMillis: 10_000,
-   });
+   const client = createPSQLDatabase(found);
 
    try {
       await client?.connect();
@@ -267,16 +248,7 @@ export const testDatabase = createServerAction()
    .handler(async ({ input }) => {
       // if (connection === 1) {
       // }
-      const client = new Client({
-         host: input.host,
-         port: input.port,
-         database: input.database,
-         user: input.username,
-         password: input.password,
-         application_name: config.fullName,
-         connectionTimeoutMillis: 10_000,
-         ssl: input.ssl,
-      });
+      const client = createPSQLDatabase(input);
 
       try {
          await client?.connect();

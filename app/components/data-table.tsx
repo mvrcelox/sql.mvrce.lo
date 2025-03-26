@@ -388,7 +388,7 @@ function Cell({
 
    return (
       <ContextMenu>
-         <span className={cn("block w-full px-2 whitespace-pre", editable && "invisible")}>{value}</span>
+         <span className={cn("block w-full px-2 whitespace-nowrap", editable && "invisible")}>{value}</span>
          {editable ? (
             <ContextMenuTrigger asChild>
                <Input

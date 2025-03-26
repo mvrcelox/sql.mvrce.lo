@@ -1,7 +1,7 @@
 import "server-only";
 import config from "@/config/site";
 import { MethodNotAllowedError, NotFoundError } from "@/infra/errors";
-import { CredentialsInput } from "@/validators/database";
+import { CredentialsInput, CredentialsSchema } from "@/validators/database";
 import { Client, FieldDef } from "pg";
 
 type Status = "connected" | "disconnected";
@@ -16,6 +16,8 @@ interface IDatabase<TStatus extends Status> {
 }
 
 export function createPSQLDatabase(input: CredentialsInput): IDatabase<"disconnected"> {
+   const safe = CredentialsSchema.safeParse(input);
+   if (!safe.success) throw new Error(safe.error.message);
    return new PSQLDatabase(input);
 }
 
@@ -24,13 +26,10 @@ class PSQLDatabase<TStatus extends Status = "disconnected"> implements IDatabase
    private client: Client;
 
    constructor(credentials: CredentialsInput) {
-      const { host, port, database, username, password } = credentials;
+      const { username, ...c } = credentials;
       this.client = new Client({
-         host,
-         port,
-         database,
+         ...c,
          user: username,
-         password,
          application_name: config.fullName,
          connectionTimeoutMillis: 10_000,
       });

@@ -9,6 +9,7 @@ const CredentialsSchema = z.object({
    database: z.string().min(1, "Too small"),
    username: z.string().min(1, "Too small"),
    password: z.string().optional().default(""),
+   ssl: z.boolean().default(false),
 });
 
 export type DatabaseInput = z.input<typeof DatabaseSchema>;

@@ -1,6 +1,6 @@
 "use server";
 
-import { DatabaseSchema } from "@/validators/database";
+import { CredentialsSchema, DatabaseSchema } from "@/validators/database";
 import { authedProcedure } from "./auth";
 import db from "@/db";
 import { databasesTable } from "@/db/schema";
@@ -125,17 +125,7 @@ export const connectDatabase = authedProcedure.input(z.number().min(1, "Invalid 
    const [found, error] = await findDatabase(input);
 
    if (error) throw new InternalServerError({ cause: error });
-
-   const { host, port, database, username, password } = found;
-   const client = new Client({
-      host,
-      port,
-      database: database,
-      user: username,
-      password,
-      application_name: config.fullName,
-      connectionTimeoutMillis: 10_000,
-   });
+   const client = createPSQLDatabase(found);
 
    try {
       await client?.connect();
@@ -187,16 +177,7 @@ export const getConnection = authedProcedure.input(z.number().min(1, "Invalid ID
    const [found, error] = await findDatabase(input);
    if (error) throw new InternalServerError({ cause: error });
 
-   const { host, port, database, username, password } = found;
-   const client = new Client({
-      host,
-      port,
-      database,
-      user: username,
-      password,
-      application_name: config.fullName,
-      connectionTimeoutMillis: 10_000,
-   });
+   const client = createPSQLDatabase(found);
 
    try {
       await client?.connect();
@@ -259,29 +240,15 @@ export const getDatabaseProperties = authedProcedure
 // Anonymous actions
 
 export const testDatabase = createServerAction()
-   .input(
-      z.object({
-         ...DatabaseSchema.shape,
-         name: z.string().max(64, "Too large"),
-      }),
-   )
+   .input(CredentialsSchema)
    .onInputParseError(async (error) => {
       console.error(error);
       throw new BadRequestError("Invalid database!");
    })
    .handler(async ({ input }) => {
-      const { connection, ...credentials } = input;
-      if (connection === 1) {
-      }
-      const client = new Client({
-         host: credentials.host,
-         port: credentials.port,
-         database: credentials.database,
-         user: credentials.username,
-         password: credentials.password,
-         application_name: config.fullName,
-         connectionTimeoutMillis: 10_000,
-      });
+      // if (connection === 1) {
+      // }
+      const client = createPSQLDatabase(input);
 
       try {
          await client?.connect();

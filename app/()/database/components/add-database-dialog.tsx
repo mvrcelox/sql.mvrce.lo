@@ -18,12 +18,14 @@ import { createDatabase, testDatabase } from "@/models/databases";
 import DatabaseSchema, { CredentialsSchema, DatabaseInput, DatabaseOutput } from "@/validators/database";
 import { useMutation } from "@tanstack/react-query";
 import { ClipboardPaste, Loader2 } from "lucide-react";
-import { FieldErrors, FormProvider, useForm } from "react-hook-form";
+import { Controller, FieldErrors, FormProvider, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
 import { useState } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/app/components/ui/tooltip";
+import { Switch } from "@/app/components/ui/switch";
+import { cn } from "@/lib/utils";
 
 type Props = React.PropsWithChildren & {
    onSuccess?: () => unknown;
@@ -37,6 +39,7 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
       resolver: zodResolver(DatabaseSchema),
    });
    const {
+      control,
       clearErrors,
       formState: { errors },
       getValues,
@@ -107,18 +110,14 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
          return;
       }
 
-      const res: Record<string, string | number | undefined> = {};
-
       if (matched?.groups?.protocol && !["postgresql", "postgres"].includes(matched?.groups?.protocol)) {
          toast.error("Not supported database protocol.");
          return;
       }
 
-      res["host"] = matched?.groups?.host;
-      res["port"] = matched?.groups?.port?.replace(/[^0-9]/g, "") || 5432;
-      res["database"] = matched?.groups?.database;
-      res["username"] = matched?.groups?.username;
-      res["password"] = matched?.groups?.password;
+      const res: Record<string, unknown> = matched.groups ?? {};
+      res["port"] = matched?.groups?.port?.replace(/[^0-9]/g, "") || "5432";
+      res["ssl"] = clipboard?.includes("sslmode=require");
 
       const safe = await CredentialsSchema.safeParseAsync(res);
       if (!safe.success) {
@@ -130,11 +129,12 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
          return;
       }
 
-      setValue("host", safe.data.host);
-      setValue("port", safe.data.port);
-      setValue("database", safe.data.database);
-      setValue("username", safe.data.username);
-      setValue("password", safe.data.password);
+      const entries = Object.entries(safe.data) as Array<
+         [keyof typeof safe.data, (typeof safe.data)[keyof typeof safe.data]]
+      >;
+      entries.forEach(([key, value]) => {
+         setValue(key, value);
+      });
    }
 
    return (
@@ -147,6 +147,21 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
             <DialogBody>
                <FormProvider {...form}>
                   <form className="flex flex-col gap-2 self-stretch" onSubmit={handleSubmit(submit, handleError)}>
+                     {/* <div className="flex items-center gap-1 rounded-md bg-gray-200 p-1">
+                        <span
+                           aria-selected={true}
+                           className="aria-selected:text-foreground aria-selected:bg-background inline-flex h-8 flex-1 items-center justify-center rounded-sm px-3 text-center text-sm text-gray-500 hover:cursor-pointer hover:bg-gray-100 hover:text-gray-700"
+                        >
+                           Credentials
+                        </span>
+                        <span
+                           aria-selected={false}
+                           className="aria-selected:text-foreground aria-selected:bg-background inline-flex h-8 flex-1 items-center justify-center rounded-sm px-3 text-center text-sm text-gray-500 hover:cursor-pointer hover:bg-gray-100 hover:text-gray-700"
+                        >
+                           Advanced settings
+                        </span>
+                     </div> */}
+
                      <div className="grid grid-cols-1 gap-1">
                         <Label required>Name</Label>
                         <Input
@@ -161,32 +176,48 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
                      </div>
 
                      <Separator className="-mx-4 my-4" />
-                     <TooltipProvider delayDuration={0} disableHoverableContent>
-                        <Tooltip>
-                           <TooltipTrigger asChild>
-                              <Button
-                                 intent="outline"
-                                 size="icon"
-                                 className="-my-5 ml-auto size-8 -translate-y-5"
-                                 onClick={handlePaste}
-                              >
-                                 <span className="sr-only">Paste database url</span>
-                                 <ClipboardPaste className="size-4 shrink-0" />
-                              </Button>
-                           </TooltipTrigger>
-                           <TooltipContent className="flex flex-col">
-                              <span className="text-background">Paste database URL</span>
-                              {/* <span className="text-background text-xs opacity-70">
-                                          The database has to been in your clipboard
-                                       </span> */}
-                           </TooltipContent>
-                        </Tooltip>
-                     </TooltipProvider>
+
                      {/* <div className="flex items-center justify-between">
                         <span className="text-sm font-semibold text-gray-600">Credentials</span>
                         <div className="flex items-center gap-2">
                         </div>
                      </div> */}
+
+                     <div className="col-span-full flex flex-1 items-center gap-2">
+                        <div className="flex items-center gap-2">
+                           <Controller
+                              name="ssl"
+                              control={control}
+                              render={({ field }) => (
+                                 <Switch
+                                    disabled={field.disabled}
+                                    onBlur={field.onBlur}
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                    name={field.name}
+                                    ref={field.ref}
+                                 />
+                              )}
+                           />
+                           <span className="text-sm">SSL</span>
+                        </div>
+                        <TooltipProvider delayDuration={0} disableHoverableContent>
+                           <Tooltip>
+                              <TooltipTrigger asChild>
+                                 <Button intent="outline" size="icon" className="ml-auto size-8" onClick={handlePaste}>
+                                    <span className="sr-only">Paste database url</span>
+                                    <ClipboardPaste className="size-4 shrink-0" />
+                                 </Button>
+                              </TooltipTrigger>
+                              <TooltipContent className="flex flex-col">
+                                 <span className="text-background">Paste database URL</span>
+                                 {/* <span className="text-background text-xs opacity-70">
+                                          The database has to been in your clipboard
+                                       </span> */}
+                              </TooltipContent>
+                           </Tooltip>
+                        </TooltipProvider>
+                     </div>
 
                      <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-4">
                         <div className="grid grid-cols-1 gap-1 sm:col-span-3">
@@ -278,9 +309,17 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
                               disabled={isTesting}
                               type={"submit"}
                               intent="primary"
-                              className={!session?.user ? "opacity-70 select-none" : undefined}
+                              className={cn(
+                                 "relative disabled:isolate disabled:cursor-not-allowed disabled:opacity-100",
+                                 !session?.user ? "cursor-not-allowed opacity-70 select-none" : undefined,
+                              )}
                            >
                               Submit
+                              {isTesting && (
+                                 <span className="absolute inset-0 grid size-full place-items-center rounded-[inherit] bg-inherit">
+                                    <Loader2 className="size-4 shrink-0 animate-spin" />
+                                 </span>
+                              )}
                            </Button>
                         </DialogFooter>
                      </div>

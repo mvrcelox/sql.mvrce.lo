@@ -18,7 +18,7 @@ import {
    useReactTable,
    VisibilityState,
 } from "@tanstack/react-table";
-import { CSSProperties, useEffect, useRef, useState } from "react";
+import { CSSProperties, useRef, useState } from "react";
 import { Input } from "./ui/input";
 
 import {
@@ -33,7 +33,7 @@ import { parseAsArrayOf, parseAsString, useQueryState } from "nuqs";
 import { useScripts } from "./scripts";
 import { useParams } from "next/navigation";
 import { useHistoryState } from "@/hooks/use-history-state";
-// import { useHistory } from "@/hooks/use-history";
+import useEffectAfterMount from "@/hooks/use-effect-after-mount";
 
 export interface GenericFieldProps {
    columnID: number;
@@ -282,7 +282,6 @@ function Cell({
 
       if (current === "" && value === null) return;
 
-      console.log(formatted.type);
       switch (formatted.type) {
          case "date": {
             const date = new Date(current as string);
@@ -381,9 +380,8 @@ function Cell({
       return;
    }
 
-   useEffect(() => {
-      if (typeof window === "undefined") return;
-      if (inputRef.current) inputRef.current.value = value ?? "";
+   useEffectAfterMount(() => {
+      if (inputRef.current) inputRef.current.value = value === "[NULL]" ? "" : (value ?? "");
    }, [value]);
 
    return (
@@ -412,19 +410,19 @@ function Cell({
                   }}
                   className={cn(
                      "data-[changed='true']:!bg-primary/10 absolute inset-0 h-full w-full rounded-none px-2 overflow-ellipsis",
-                     value === null
+                     value
                         ? "placeholder-shown:not-focus:text-center placeholder-shown:focus:placeholder:text-transparent"
                         : "",
                   )}
-                  placeholder={value === null ? "[NULL]" : undefined}
-                  defaultValue={value ?? ""}
+                  placeholder={value === "[NULL]" ? value : undefined}
+                  defaultValue={value == "[NULL]" ? undefined : (value ?? "")}
                />
             </ContextMenuTrigger>
          ) : null}
          <ContextMenuContent onCloseAutoFocus={(e) => e.preventDefault()}>
             <ContextMenuLabel>Actions</ContextMenuLabel>
 
-            <ContextMenuItem disabled={value === null} onSelect={() => handleOnBlur(null)} className="gap-2">
+            <ContextMenuItem disabled={value === "[NULL]"} onSelect={() => handleOnBlur(null)} className="gap-2">
                <CircleDashed className="size-4 shrink-0" />
                Set null
             </ContextMenuItem>

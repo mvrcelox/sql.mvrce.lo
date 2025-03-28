@@ -51,7 +51,7 @@ export const ThemeToggle = ({ layoutGroupId, className, size = "md", ...props }:
                         <motion.span
                            transition={{ duration: 0.15 }}
                            layoutId="theme-toggle-selector"
-                           className="absolute inset-0 block h-full w-full rounded-[inherit] bg-gray-200"
+                           className="bg-background absolute inset-0 block h-full w-full rounded-[inherit] border"
                         />
                      ) : null}
                      <span className="sr-only">

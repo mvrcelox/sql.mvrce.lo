@@ -24,7 +24,7 @@ export const inputVariants = cva(
          },
       },
       defaultVariants: {
-         intent: "primary",
+         intent: "gray",
          size: "md",
       },
    },

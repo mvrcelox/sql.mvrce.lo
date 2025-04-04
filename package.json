@@ -6,13 +6,14 @@
       "services:up": "docker compose -p drizzle -f infra/compose.yaml up -d",
       "services:stop": "docker compose -p drizzle -f infra/compose.yaml stop",
       "services:down": "docker compose -p drizzle -f infra/compose.yaml down",
-      "dev": "npm run services:up && next dev --turbopack",
+      "dev": "npm run services:up && next dev --turbo",
       "prebuild": "next lint --quiet --fix",
       "build": "next build",
       "start": "next start",
       "lint": "next lint",
       "lint:fix": "next lint --quiet --fix",
-      "drizzle:migrate": ""
+      "drizzle:migrate": "drizzle-kit generate",
+      "drizzle:push": "drizzle-kit push"
    },
    "dependencies": {
       "@auth/drizzle-adapter": "^1.8.0",

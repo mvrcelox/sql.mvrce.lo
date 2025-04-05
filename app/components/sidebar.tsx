@@ -51,16 +51,16 @@ const Sidebar = exportAsClient(function () {
             ease: "circInOut",
             duration: sidebarAnimationDuration,
          }}
-         className="sticky top-0 z-[3] flex flex-col self-stretch bg-gray-100/50"
+         className="sticky top-0 z-[3] flex w-[calc(2.75rem+1px)] flex-col self-stretch border-r bg-gray-100/50 md:w-[calc(3rem+1px)]"
       >
-         <div className="bg-background grid w-[calc(2.5rem+1px)] place-items-center border-r border-b py-2">
+         <div className="bg-background grid max-h-[calc(2.5rem+1px)] place-items-center border-b py-2">
             <Logo className="size-6" />
          </div>
 
-         <nav className="flex shrink-0 flex-col self-stretch">
+         <nav className="flex shrink-0 grow flex-col gap-2 self-stretch p-1">
             {sections.map((section, idx) => {
                return (
-                  <div key={idx} className="flex flex-col self-stretch">
+                  <div key={idx} className="flex flex-col gap-1 self-stretch">
                      {section.map((nav) => {
                         const isActive = isCurrentPath(nav.href);
                         return (
@@ -81,15 +81,21 @@ const Sidebar = exportAsClient(function () {
                                           setHide((old) => !old);
                                        }}
                                        className={cn([
-                                          "relative isolation-auto grid h-10 place-items-center border-b",
+                                          "group relative isolation-auto grid h-10 place-items-center rounded-md",
                                           isActive
                                              ? cn(
                                                   "!bg-background text-primary hover:text-primary-hover pr-px",
-                                                  hide ? "border-r" : null,
+                                                  hide ? "" : null,
                                                )
-                                             : "border-r bg-transparent text-gray-500 hover:bg-gray-200 hover:text-gray-700",
+                                             : "bg-transparent text-gray-500 hover:bg-gray-200 hover:text-gray-700",
                                        ])}
                                     >
+                                       {isActive ? (
+                                          <motion.span
+                                             layoutId="sidebar-selector"
+                                             className="bg-primary/15 group-hover:bg-primary/20 ring-primary/50 absolute inset-0 size-full rounded-[inherit] shadow-xs"
+                                          />
+                                       ) : null}
                                        <nav.icon className="size-5" strokeWidth={2} />
                                        <span className="sr-only">{nav.label}</span>
                                     </Link>
@@ -104,28 +110,9 @@ const Sidebar = exportAsClient(function () {
                   </div>
                );
             })}
+            <span role="separator" tabIndex={-1} aria-label="spacement" className="grow self-stretch" />
+            <SidebarUser />
          </nav>
-         <span aria-label="spacement" className="grow border-r" />
-
-         {/* <div className="border-t border-r">
-               <TooltipProvider delayDuration={0} skipDelayDuration={0} disableHoverableContent>
-                  <Tooltip>
-                     <TooltipTrigger asChild>
-                        <Button
-                           intent="ghost"
-                           size="icon"
-                           className="size-10 rounded-none text-gray-500 hover:bg-gray-200 hover:text-gray-700"
-                        >
-                           <UserRound className="size-5" />
-                        </Button>
-                     </TooltipTrigger>
-                     <TooltipContent side="right" className="!pointer-events-none">
-                        User
-                     </TooltipContent>
-                  </Tooltip>
-               </TooltipProvider>
-            </div> */}
-         <SidebarUser />
       </motion.aside>
    );
 });
@@ -152,67 +139,65 @@ function SidebarUser() {
    const { data: session } = useSession();
 
    return (
-      <div className="border-t border-r">
-         <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-               <Button
-                  intent="ghost"
-                  size="icon"
-                  className="size-10 rounded-none text-gray-500 hover:bg-gray-200 hover:text-gray-700"
-               >
-                  <UserRound className="size-5" />
+      <DropdownMenu>
+         <DropdownMenuTrigger asChild>
+            <Button
+               intent="ghost"
+               size="icon"
+               className="size-9 text-gray-500 hover:bg-gray-200 hover:text-gray-700 aria-expanded:bg-gray-200 aria-expanded:shadow-inner md:size-10"
+            >
+               <UserRound className="size-5" />
+            </Button>
+         </DropdownMenuTrigger>
+         <DropdownMenuContent side="top">
+            <div className="flex items-center gap-2 p-1">
+               {session?.user?.image ? (
+                  <span
+                     className="block size-8 rounded bg-contain"
+                     style={{ backgroundImage: `url(${session?.user?.image})` }}
+                  />
+               ) : (
+                  <span className="block size-8 rounded bg-gray-200" />
+               )}
+               <div className="flex flex-col">
+                  <div className="text-foreground text-sm">
+                     {session?.user?.id ?? 0} - {session?.user?.name ?? "Your username"}
+                  </div>
+                  <div className="text-xs text-gray-500">{session?.user?.email ?? "example@email.com"}</div>
+               </div>
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="justify-between gap-4 pr-1">
+               Command menu{" "}
+               <div className="flex items-center gap-0.5">
+                  <kbd className="font-geist-sans bg-background rounded-sm border px-1.5 py-0.5 text-xs hover:bg-gray-100">
+                     Ctrl
+                  </kbd>
+                  <kbd className="font-geist-sans bg-background rounded-sm border px-1.5 py-0.5 text-xs hover:bg-gray-100">
+                     K
+                  </kbd>
+               </div>
+            </DropdownMenuItem>
+            <div className="flex items-center gap-4 py-1.5 pl-2">
+               <span className="text-sm text-gray-700">Theme</span>
+               <div className="ml-auto aspect-[3/1] h-7 animate-pulse rounded bg-gray-200" />
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="gap-2" asChild>
+               <Link href={`/settings/me`}>
+                  Account settings
+                  <Bolt className="ml-auto size-4 shrink-0 opacity-70" />
+               </Link>
+            </DropdownMenuItem>
+            <SignOutButton />
+            <DropdownMenuSeparator />
+            <div className="p-1">
+               <Button size="none" className="w-full px-2 py-1.5">
+                  Upgrade to pro!
                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent side="top">
-               <div className="flex items-center gap-2 p-1">
-                  {session?.user?.image ? (
-                     <span
-                        className="block size-8 rounded bg-contain"
-                        style={{ backgroundImage: `url(${session?.user?.image})` }}
-                     />
-                  ) : (
-                     <span className="block size-8 rounded bg-gray-200" />
-                  )}
-                  <div className="flex flex-col">
-                     <div className="text-foreground text-sm">
-                        {session?.user?.id ?? 0} - {session?.user?.name ?? "Your username"}
-                     </div>
-                     <div className="text-xs text-gray-500">{session?.user?.email ?? "example@email.com"}</div>
-                  </div>
-               </div>
-               <DropdownMenuSeparator />
-               <DropdownMenuItem className="justify-between gap-4 pr-1">
-                  Command menu{" "}
-                  <div className="flex items-center gap-0.5">
-                     <kbd className="font-geist-sans bg-background rounded-sm border px-1.5 py-0.5 text-xs hover:bg-gray-100">
-                        Ctrl
-                     </kbd>
-                     <kbd className="font-geist-sans bg-background rounded-sm border px-1.5 py-0.5 text-xs hover:bg-gray-100">
-                        K
-                     </kbd>
-                  </div>
-               </DropdownMenuItem>
-               <div className="flex items-center gap-4 py-1.5 pl-2">
-                  <span className="text-sm text-gray-700">Theme</span>
-                  <div className="ml-auto aspect-[3/1] h-7 animate-pulse rounded bg-gray-200" />
-               </div>
-               <DropdownMenuSeparator />
-               <DropdownMenuItem className="gap-2" asChild>
-                  <Link href={`/settings/me`}>
-                     Account settings
-                     <Bolt className="ml-auto size-4 shrink-0 opacity-70" />
-                  </Link>
-               </DropdownMenuItem>
-               <SignOutButton />
-               <DropdownMenuSeparator />
-               <div className="p-1">
-                  <Button size="none" className="w-full px-2 py-1.5">
-                     Upgrade to pro!
-                  </Button>
-               </div>
-            </DropdownMenuContent>
-         </DropdownMenu>
-      </div>
+            </div>
+         </DropdownMenuContent>
+      </DropdownMenu>
    );
 }
 

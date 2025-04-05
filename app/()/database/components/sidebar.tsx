@@ -189,8 +189,8 @@ const Sidebar = exportAsClient(function () {
                            return <DatabaseItem state={state} database={database} key={database.id} />;
                         })
                   ) : (
-                     <div className="m-auto flex flex-col items-center gap-2">
-                        <span className="rounded-md border border-transparent bg-gray-200 p-3 hover:border-gray-400">
+                     <div className="m-auto flex flex-col items-center gap-4">
+                        <span className="rounded-md bg-gray-200 p-3">
                            <Database className="size-6 shrink-0" />
                         </span>
                         <span className="text-sm text-gray-500">No databases found.</span>

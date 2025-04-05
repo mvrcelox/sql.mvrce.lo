@@ -59,6 +59,42 @@ class PSQLDatabase<TStatus extends Status = "disconnected"> implements IDatabase
       return { count: response?.rowCount ?? 0, rows: response.rows as T[], fields: response.fields };
    }
 
+   public async getTable<T>(table: string, options: { limit?: number; order?:string, sort?: string|number, offset?: number }={limit:200,order:"ASC",sort:1,offset:0}): Promise<{ count: number; rows: T[]; fields: unknown[] }> {
+      const [fields, data] = await Promise.all([
+         this.query<{name:string,position:number,type:string,nullable:boolean,default:string,key_type:string}>(`SELECT
+               c.column_name as name,
+               c.ordinal_position as position,
+               c.udt_name as type,
+               c.is_nullable as nullable,
+               c.column_default as default,
+               CASE
+                  WHEN kcu.column_name IS NOT NULL THEN 'PRIMARY KEY'
+                  ELSE ''
+               END AS key_type
+            FROM
+               information_schema.columns AS c
+            LEFT JOIN
+               information_schema.key_column_usage AS kcu
+                  ON c.table_schema = kcu.table_schema
+                  AND c.table_name = kcu.table_name
+                  AND c.column_name = kcu.column_name
+            LEFT JOIN
+               information_schema.table_constraints AS tc
+                  ON kcu.constraint_schema = tc.constraint_schema
+                  AND kcu.constraint_name = tc.constraint_name
+            WHERE
+               c.table_schema = 'public'
+               AND c.table_name = 'databases'
+               AND (tc.constraint_type = 'PRIMARY KEY' OR tc.constraint_type IS NULL)
+            ORDER BY
+               c.ordinal_position ASC`),
+         this.query<T>(`SELECT * FROM ${table} ORDER BY ${typeof options.sort === 'number' ? options.sort : `"${options.sort}"`} ${options.order} LIMIT ${options.limit} OFFSET ${options.offset}`),
+      ])
+      
+
+      return { count: data.count || 0, rows: data.rows, fields: fields.rows}
+   }
+
    public async end(): Promise<IDatabase<"disconnected">> {
       await this.client?.end();
       this.status = "disconnected" as TStatus;

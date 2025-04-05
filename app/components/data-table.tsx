@@ -3,8 +3,7 @@
 import { DataTableColumnHeader } from "@/app/components/data-table-column-header";
 import { Table, TBody, Td, Th, THead, TRow } from "@/app/components/ui/table";
 import { cn } from "@/lib/utils";
-import { CircleCheck, CircleDashed, CircleSlash, Redo, RotateCcw, Undo } from "lucide-react";
-import { FieldDef } from "pg";
+import { CircleCheck, CircleDashed, CircleSlash, Copy, Redo, RotateCcw, Search, Undo } from "lucide-react";
 
 import {
    Column,
@@ -34,6 +33,11 @@ import { useScripts } from "./scripts";
 import { useParams } from "next/navigation";
 import { useHistoryState } from "@/hooks/use-history-state";
 import useEffectAfterMount from "@/hooks/use-effect-after-mount";
+import { GetTableReturn } from "@/lib/database-factory";
+import { DatatypeToJavascript } from "@/constants/converters";
+import { Tooltip, TooltipContent, TooltipProvider } from "./ui/tooltip";
+import { TooltipTrigger } from "@radix-ui/react-tooltip";
+import { toast } from "sonner";
 
 export interface GenericFieldProps {
    columnID: number;
@@ -45,8 +49,9 @@ export interface GenericFieldProps {
 }
 
 export interface DataTableProps {
-   fields?: FieldDef[];
-   rows?: Record<string, unknown>[];
+   count: GetTableReturn["count"];
+   fields?: GetTableReturn["fields"];
+   rows?: GetTableReturn["rows"];
    defaultHeader?: boolean;
    editable?: boolean;
 }
@@ -106,25 +111,174 @@ function getCommonPinningStyles<TData>(column: Column<TData>): CSSProperties {
 const columnResizeMode = "onEnd" satisfies ColumnResizeMode;
 const columnResizeDirection = "ltr" satisfies ColumnResizeDirection;
 
-function Cell({
-   name,
-   row,
-   editable,
-}: {
-   type?: string;
+export const DataTable = ({ fields = [], rows = [], editable = true }: DataTableProps) => {
+   const [hidden] = useQueryState(
+      "hide",
+      parseAsArrayOf(parseAsString).withDefault([]).withOptions({
+         clearOnDefault: true,
+         scroll: false,
+      }),
+   );
+
+   const primaryKey = fields.find((x) => x.key_type === "PRIMARY KEY");
+   const [columnPinning, setColumnPinning] = useState<ColumnPinningState>({
+      left: ["$index", ...(primaryKey ? [primaryKey.name] : [])],
+      right: [],
+   });
+   const columnVisibility = hidden.reduce<VisibilityState>((acc, cur) => ({ ...acc, [cur]: false }), {});
+
+   const table = useReactTable({
+      columns: [
+         {
+            accessorKey: "$index",
+            header: "#",
+            cell: ({ row }) => {
+               return (
+                  <span aria-description="index" className="block px-0 text-center">
+                     {row.index + 1}
+                  </span>
+               );
+            },
+            minSize: 40,
+            size: 40,
+         },
+         ...fields.map(
+            (field) =>
+               ({
+                  accessorKey: field.name,
+                  cell: ({ row }) => {
+                     const id = (row.original as Record<string, string | number>)?.[primaryKey?.name || ""];
+                     return (
+                        <Cell
+                           key={id}
+                           id={id}
+                           readOnly={!editable}
+                           name={field.name}
+                           position={field.position}
+                           type={DatatypeToJavascript?.[field.type as keyof typeof DatatypeToJavascript] ?? "unknown"}
+                           nullable={field.nullable == "YES"}
+                           fallback={field.default}
+                           defaultValue={row.getValue(field.name)}
+                        />
+                     );
+                  },
+                  header: field.name,
+                  enableHiding: true,
+               }) satisfies ColumnDef<unknown>,
+         ),
+      ],
+      data: rows,
+      getCoreRowModel: getCoreRowModel(),
+      getFacetedRowModel: getFacetedRowModel(),
+      initialState: {
+         columnPinning,
+         columnVisibility,
+      },
+      state: {
+         columnPinning,
+         columnVisibility,
+      },
+      onColumnPinningChange: setColumnPinning,
+      onColumnVisibilityChange: undefined,
+
+      columnResizeMode,
+      columnResizeDirection,
+   });
+
+   return (
+      <>
+         <Table className="bg-background w-max" style={{ direction: columnResizeDirection }}>
+            <THead>
+               {table.getHeaderGroups().map((headerGroup) => (
+                  <TRow key={headerGroup.id} className="isolate bg-gray-100">
+                     {headerGroup.headers.map((header, index) => {
+                        return (
+                           <Th
+                              key={header.id}
+                              colSpan={header.colSpan}
+                              className={cn("group isolation-auto bg-gray-100")}
+                              style={{ ...getCommonPinningStyles(header.column) }}
+                           >
+                              {index > 0 ? (
+                                 <DataTableColumnHeader
+                                    id={header.id}
+                                    // className={
+                                    //    table.getState().columnSizingInfo.deltaOffset !== 0 ? "pointer-events-none" : ""
+                                    // }
+                                 >
+                                    {flexRender(header.column.columnDef.header, header.getContext())}
+                                 </DataTableColumnHeader>
+                              ) : (
+                                 flexRender(header.column.columnDef.header, header.getContext())
+                              )}
+
+                              <span
+                                 className={cn(
+                                    "absolute inset-y-0 z-50 h-full w-1 cursor-col-resize touch-none bg-transparent select-none ltr:right-0 rtl:left-0",
+                                    header.column.getIsResizing() ? "bg-primary" : "hover:bg-primary",
+                                 )}
+                                 onDoubleClick={() => header.column.resetSize()}
+                                 onMouseDown={header.getResizeHandler()}
+                                 onTouchStart={header.getResizeHandler()}
+                                 style={{
+                                    transform: header.column.getIsResizing()
+                                       ? `translateX(${
+                                            (table.options.columnResizeDirection === "rtl" ? -1 : 1) *
+                                            (table.getState().columnSizingInfo.deltaOffset ?? 0)
+                                         }px)`
+                                       : "",
+                                 }}
+                              />
+                           </Th>
+                        );
+                     })}
+                  </TRow>
+               ))}
+            </THead>
+            <TBody>
+               {table.getRowModel().rows?.map((row) => (
+                  <TRow key={row.id} className="group/tr h-7 border-b-zinc-200 dark:border-b-zinc-800">
+                     {row.getVisibleCells()?.map((cell) => {
+                        return (
+                           <Td
+                              role="cell"
+                              key={cell.id}
+                              className="bg-background group-hover/tr:text-foreground focus-within:[&>div]:bg-accent focus-within:[&>div]:ring-c400 relative overflow-visible p-0 group-hover/tr:bg-gray-100 focus-within:z-10 focus-within:[&>div]:ring-1"
+                              style={{ ...getCommonPinningStyles(cell.column) }}
+                           >
+                              {/* <div role="cell" className="pointer-events-none absolute inset-0 h-full w-full" /> */}
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                           </Td>
+                        );
+                     })}
+                  </TRow>
+               ))}
+            </TBody>
+         </Table>
+      </>
+   );
+};
+
+type CellType = "date" | "boolean" | "number" | "string" | "array" | "json" | "null" | "unknown";
+interface CellProps {
+   id: string | number;
    name: string;
-   editable?: boolean;
-   row: { original: unknown; getValue: (name: string) => string };
-}) {
+   position: number;
+   type: CellType;
+   nullable: boolean;
+   fallback?: unknown;
+   readOnly?: boolean;
+   defaultValue: unknown;
+}
+
+function Cell({ id, name, type, nullable, defaultValue, readOnly }: CellProps) {
    const inputRef = useRef<HTMLInputElement | null>(null);
    const params = useParams<{ databaseId: string; tableName: string }>();
 
    const scriptId = useRef<string | undefined>(undefined);
    const { setDatabase, appendScript, updateScript, removeScript } = useScripts();
 
-   const rowId = (row.original as { id: string | number }).id;
-   const cell = row.getValue(name);
-   const formatted = tableCellFormatter(cell);
+   const formatted = tableCellFormatter(defaultValue);
 
    const {
       value,
@@ -219,7 +373,7 @@ function Cell({
 
    function getSQL(current: string) {
       let sql = "";
-      switch (formatted.type) {
+      switch (type) {
          case "date": {
             const date = new Date(current);
             if (isNaN(date.getTime())) return;
@@ -262,7 +416,7 @@ function Cell({
          default:
             break;
       }
-      return `UPDATE ${params.tableName} SET ${name} = ${sql} WHERE id = ${rowId}`;
+      return `UPDATE ${params.tableName} SET ${name} = ${sql} WHERE id = ${id}`;
    }
 
    function handleOnBlur(current: string | null) {
@@ -282,7 +436,7 @@ function Cell({
 
       if (current === "" && value === null) return;
 
-      switch (formatted.type) {
+      switch (type) {
          case "date": {
             const date = new Date(current as string);
             if (isNaN(date.getTime())) {
@@ -338,7 +492,7 @@ function Cell({
       setValue(current);
       setDatabase(params.databaseId);
 
-      const script = `UPDATE ${params.tableName} SET ${name} = ${sql} WHERE id = ${rowId}`;
+      const script = `UPDATE ${params.tableName} SET ${name} = ${sql} WHERE id = ${id}`;
 
       if (scriptId.current && value !== initialValue) {
          const res = updateScript(script, scriptId.current, (method) => {
@@ -386,8 +540,8 @@ function Cell({
 
    return (
       <ContextMenu>
-         <span className={cn("block w-full px-2 whitespace-nowrap", editable && "invisible")}>{value}</span>
-         {editable ? (
+         <span className={cn("block w-full px-2 whitespace-nowrap", !readOnly && "invisible")}>{value}</span>
+         {readOnly ? null : (
             <ContextMenuTrigger asChild>
                <Input
                   ref={inputRef}
@@ -399,7 +553,6 @@ function Cell({
                      handleOnBlur(e.currentTarget.value);
                   }}
                   onKeyDown={(e) => {
-                     // if (e.key === "Z")
                      if (e.key === "Escape") {
                         e.currentTarget.value = value ?? "";
                         e.currentTarget.blur();
@@ -418,15 +571,75 @@ function Cell({
                   defaultValue={value == "[NULL]" ? undefined : (value ?? "")}
                />
             </ContextMenuTrigger>
-         ) : null}
-         <ContextMenuContent onCloseAutoFocus={(e) => e.preventDefault()}>
-            <ContextMenuLabel>Actions</ContextMenuLabel>
+         )}
+         <ContextMenuContent className="min-w-40" onCloseAutoFocus={(e) => e.preventDefault()}>
+            <div className="flex items-center">
+               <ContextMenuItemWithTooltip disabled={!canUndo} onSelect={() => undo()} tooltip="Undo" className="p-2">
+                  <Undo className="size-4 shrink-0" />
+               </ContextMenuItemWithTooltip>
+               <ContextMenuItemWithTooltip disabled={!canRedo} onSelect={() => redo()} tooltip="Redo" className="p-2">
+                  <Redo className="size-4 shrink-0" />
+               </ContextMenuItemWithTooltip>
+               <ContextMenuItemWithTooltip
+                  disabled={!canRedo && !canUndo}
+                  onSelect={() => reset()}
+                  tooltip="Reset"
+                  className="p-2"
+               >
+                  <RotateCcw className="size-4 shrink-0" />
+               </ContextMenuItemWithTooltip>
+               <ContextMenuItemWithTooltip
+                  tooltip="Copy"
+                  className="p-2"
+                  onClick={() => {
+                     try {
+                        navigator.clipboard.writeText(value ?? "");
+                     } catch {
+                        toast.error("Failed to copy to clipboard");
+                     }
+                  }}
+               >
+                  <Copy className="size-4 shrink-0" />
+               </ContextMenuItemWithTooltip>
+               <ContextMenuItemWithTooltip disabled tooltip="Find" className="p-2">
+                  <Search className="size-4 shrink-0" />
+               </ContextMenuItemWithTooltip>
+            </div>
+            <ContextMenuSeparator />
+            <div className="flex items-center justify-between gap-1 pr-1">
+               <ContextMenuLabel>Properties</ContextMenuLabel>
+            </div>
+            <div className="flex flex-col gap-1 px-1 pb-1 text-sm">
+               {/* <p className="flex items-center justify-between gap-1 self-stretch">
+                  <span className="text-gray-700">Name:</span>
+                  <span className="text-foreground block truncate font-medium">{name}</span>
+               </p> */}
+               <p className="flex items-center justify-between gap-1 self-stretch">
+                  <span className="text-gray-700">Type:</span>
+                  <span className="text-foreground block truncate font-medium">{type}</span>
+               </p>
+               {/* <p className="flex items-center justify-between gap-1 self-stretch">
+                  <span className="text-gray-700">Position:</span>
+                  <span className="text-foreground block truncate font-medium">{position}</span>
+               </p> */}
+               <p className="flex items-center justify-between gap-1 self-stretch">
+                  <span className="text-gray-700">Nullable:</span>
+                  <span className={cn("block size-2 rounded-full", nullable ? "bg-green-500" : "bg-red-500")} />
+               </p>
+            </div>
 
-            <ContextMenuItem disabled={value === "[NULL]"} onSelect={() => handleOnBlur(null)} className="gap-2">
+            <ContextMenuSeparator />
+            {/* <ContextMenuLabel>Actions</ContextMenuLabel> */}
+
+            <ContextMenuItem
+               disabled={value === "[NULL]" || !nullable}
+               onSelect={() => handleOnBlur(null)}
+               className="gap-2"
+            >
                <CircleDashed className="size-4 shrink-0" />
                Set null
             </ContextMenuItem>
-            {formatted.type === "boolean" ? (
+            {type === "boolean" ? (
                <ContextMenuItem
                   disabled={value === null}
                   onSelect={() => handleOnBlur(value === "true" ? "false" : "true")}
@@ -440,33 +653,6 @@ function Cell({
                   Set {value === "true" ? "false" : "true"}
                </ContextMenuItem>
             ) : null}
-            <ContextMenuSeparator />
-            <ContextMenuItem
-               disabled={!canUndo}
-               onSelect={() => {
-                  if (!canUndo) return;
-                  undo();
-               }}
-               className="gap-2"
-            >
-               <Undo className="size-4 shrink-0" />
-               Undo
-            </ContextMenuItem>
-            <ContextMenuItem
-               disabled={!canRedo}
-               onSelect={() => {
-                  if (!canRedo) return;
-                  redo();
-               }}
-               className="gap-2"
-            >
-               <Redo className="size-4 shrink-0" />
-               Redo
-            </ContextMenuItem>
-            <ContextMenuItem disabled={!canRedo && !canUndo} onSelect={() => reset()} className="gap-2">
-               <RotateCcw className="size-4 shrink-0" />
-               Reset
-            </ContextMenuItem>
          </ContextMenuContent>
          {/* {editable ? (
          ) : null} */}
@@ -474,137 +660,19 @@ function Cell({
    );
 }
 
-export const DataTable = ({ fields = [], rows = [], editable = true }: DataTableProps) => {
-   const [hidden] = useQueryState(
-      "hide",
-      parseAsArrayOf(parseAsString).withDefault([]).withOptions({
-         clearOnDefault: true,
-         scroll: false,
-      }),
-   );
-
-   const [columnPinning, setColumnPinning] = useState<ColumnPinningState>({ left: ["$index"], right: [] });
-
-   const columnVisibility = hidden.reduce<VisibilityState>((acc, cur) => ({ ...acc, [cur]: false }), {});
-
-   const table = useReactTable({
-      columns: [
-         {
-            accessorKey: "$index",
-            header: "#",
-            cell: ({ row }) => {
-               return (
-                  <span aria-description="index" className="block px-0 text-center">
-                     {row.index + 1}
-                  </span>
-               );
-            },
-            minSize: 40,
-            size: 40,
-         },
-         ...fields
-            // ?.filter((x) => (hidden.includes(x.name) ? false : true))
-            .map(
-               (field) =>
-                  ({
-                     accessorKey: field.name,
-                     cell: ({ row }: { row: { original: unknown; getValue: (name: string) => string } }) => (
-                        <Cell name={field.name} row={row} editable={editable} />
-                     ),
-                     header: field.name,
-                     enableHiding: true,
-                  }) satisfies ColumnDef<unknown>,
-            ),
-      ],
-      data: rows,
-      getCoreRowModel: getCoreRowModel(),
-      getFacetedRowModel: getFacetedRowModel(),
-      initialState: {
-         columnPinning,
-         columnVisibility,
-      },
-      state: {
-         columnPinning,
-         columnVisibility,
-      },
-      onColumnPinningChange: setColumnPinning,
-      onColumnVisibilityChange: undefined,
-
-      columnResizeMode,
-      columnResizeDirection,
-   });
-
+function ContextMenuItemWithTooltip({
+   children,
+   tooltip,
+   ...props
+}: React.ComponentPropsWithoutRef<typeof ContextMenuItem> & { tooltip?: string | React.ReactNode }) {
    return (
-      <>
-         <Table className="bg-background w-max" style={{ direction: columnResizeDirection }}>
-            <THead>
-               {table.getHeaderGroups().map((headerGroup) => (
-                  <TRow key={headerGroup.id} className="bg-gray-100">
-                     {headerGroup.headers.map((header, index) => {
-                        return (
-                           <Th
-                              key={header.id}
-                              colSpan={header.colSpan}
-                              className={cn("group", index === 0 ? "bg-gray-100" : "bg-transparent")}
-                              style={{ ...getCommonPinningStyles(header.column) }}
-                           >
-                              <>
-                                 {index > 0 ? (
-                                    <DataTableColumnHeader
-                                       id={header.id}
-                                       // className={
-                                       //    table.getState().columnSizingInfo.deltaOffset !== 0 ? "pointer-events-none" : ""
-                                       // }
-                                    >
-                                       {flexRender(header.column.columnDef.header, header.getContext())}
-                                    </DataTableColumnHeader>
-                                 ) : (
-                                    flexRender(header.column.columnDef.header, header.getContext())
-                                 )}
-                                 <span
-                                    className={cn(
-                                       "absolute inset-y-0 z-50 h-full w-1 cursor-col-resize touch-none bg-transparent select-none ltr:right-0 rtl:left-0",
-                                       header.column.getIsResizing() ? "bg-primary" : "hover:bg-primary",
-                                    )}
-                                    onDoubleClick={() => header.column.resetSize()}
-                                    onMouseDown={header.getResizeHandler()}
-                                    onTouchStart={header.getResizeHandler()}
-                                    style={{
-                                       transform: header.column.getIsResizing()
-                                          ? `translateX(${
-                                               (table.options.columnResizeDirection === "rtl" ? -1 : 1) *
-                                               (table.getState().columnSizingInfo.deltaOffset ?? 0)
-                                            }px)`
-                                          : "",
-                                    }}
-                                 />
-                              </>
-                           </Th>
-                        );
-                     })}
-                  </TRow>
-               ))}
-            </THead>
-            <TBody>
-               {table.getRowModel().rows?.map((row) => (
-                  <TRow key={row.id} className="group/tr h-7 border-b-zinc-200 dark:border-b-zinc-800">
-                     {row.getVisibleCells()?.map((cell) => {
-                        return (
-                           <Td
-                              role="cell"
-                              key={cell.id}
-                              className="bg-background group-hover/tr:text-foreground focus-within:[&>div]:bg-accent focus-within:[&>div]:ring-c400 relative overflow-visible p-0 group-hover/tr:bg-gray-100 focus-within:z-10 focus-within:[&>div]:ring-1"
-                              style={{ ...getCommonPinningStyles(cell.column) }}
-                           >
-                              {/* <div role="cell" className="pointer-events-none absolute inset-0 h-full w-full" /> */}
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                           </Td>
-                        );
-                     })}
-                  </TRow>
-               ))}
-            </TBody>
-         </Table>
-      </>
+      <TooltipProvider>
+         <Tooltip>
+            <TooltipTrigger asChild>
+               <ContextMenuItem {...props}>{children}</ContextMenuItem>
+            </TooltipTrigger>
+            <TooltipContent>{tooltip}</TooltipContent>
+         </Tooltip>
+      </TooltipProvider>
    );
-};
+}

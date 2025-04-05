@@ -1,11 +1,23 @@
 import "server-only";
 
 import config from "@/config/site";
-import { BadRequestError, MethodNotAllowedError, NotFoundError } from "@/infra/errors";
+import { BadRequestError, InternalServerError, MethodNotAllowedError, NotFoundError } from "@/infra/errors";
 import { CredentialsInput, CredentialsSchema } from "@/validators/database";
 import { Client, FieldDef } from "pg";
 
+interface Field {
+   name: string;
+   position: number;
+   type: string;
+   nullable: "YES" | "NO";
+   default: string;
+   key_type: string;
+}
 type Status = "connected" | "disconnected";
+
+export type GetTableReturn<T = unknown> = { count: number; rows: T[]; fields: Field[] };
+// export type GetPropertiesReturn = {};
+
 interface IDatabase<TStatus extends Status> {
    status: TStatus;
    connect: () => Promise<IDatabase<"connected">>;
@@ -13,6 +25,10 @@ interface IDatabase<TStatus extends Status> {
       sql: string,
       params?: unknown[],
    ) => Promise<{ count: number; rows: T[]; fields: FieldDef[] }> | never;
+   getTable: <T>(
+      table: string,
+      options?: { limit?: number; order?: string; sort?: string | number; offset?: number },
+   ) => Promise<GetTableReturn<T>>;
    end: () => Promise<IDatabase<"disconnected">>;
 }
 
@@ -44,8 +60,6 @@ class PSQLDatabase<TStatus extends Status = "disconnected"> implements IDatabase
       if (!this.client) throw new NotFoundError(`Client doesn't exist. Try re-creating the database`);
 
       if (!(this.client instanceof Client)) throw new Error("Client is not an instance of pg.Client");
-      console.log(this.client);
-      console.log("connect" in this.client);
 
       await this.client.connect();
       this.status = "connected" as TStatus;
@@ -59,40 +73,59 @@ class PSQLDatabase<TStatus extends Status = "disconnected"> implements IDatabase
       return { count: response?.rowCount ?? 0, rows: response.rows as T[], fields: response.fields };
    }
 
-   public async getTable<T>(table: string, options: { limit?: number; order?:string, sort?: string|number, offset?: number }={limit:200,order:"ASC",sort:1,offset:0}): Promise<{ count: number; rows: T[]; fields: unknown[] }> {
-      const [fields, data] = await Promise.all([
-         this.query<{name:string,position:number,type:string,nullable:boolean,default:string,key_type:string}>(`SELECT
-               c.column_name as name,
-               c.ordinal_position as position,
-               c.udt_name as type,
-               c.is_nullable as nullable,
-               c.column_default as default,
-               CASE
-                  WHEN kcu.column_name IS NOT NULL THEN 'PRIMARY KEY'
-                  ELSE ''
-               END AS key_type
-            FROM
-               information_schema.columns AS c
-            LEFT JOIN
-               information_schema.key_column_usage AS kcu
-                  ON c.table_schema = kcu.table_schema
-                  AND c.table_name = kcu.table_name
-                  AND c.column_name = kcu.column_name
-            LEFT JOIN
-               information_schema.table_constraints AS tc
-                  ON kcu.constraint_schema = tc.constraint_schema
-                  AND kcu.constraint_name = tc.constraint_name
-            WHERE
-               c.table_schema = 'public'
-               AND c.table_name = 'databases'
-               AND (tc.constraint_type = 'PRIMARY KEY' OR tc.constraint_type IS NULL)
-            ORDER BY
-               c.ordinal_position ASC`),
-         this.query<T>(`SELECT * FROM ${table} ORDER BY ${typeof options.sort === 'number' ? options.sort : `"${options.sort}"`} ${options.order} LIMIT ${options.limit} OFFSET ${options.offset}`),
-      ])
-      
+   public async getTable<T = unknown>(
+      table: string,
+      options: { limit?: number; order?: string; sort?: string | number; offset?: number } = {
+         limit: 200,
+         order: "ASC",
+         sort: 1,
+         offset: 0,
+      },
+   ): Promise<{ count: number; rows: T[]; fields: Field[] }> {
+      try {
+         const [fields, data] = await Promise.all([
+            this.client.query<Field>(
+               `SELECT
+                     c.column_name as name,
+                     c.ordinal_position as position,
+                     c.udt_name as type,
+                     c.is_nullable as nullable,
+                     c.column_default as default,
+                     CASE
+                        WHEN kcu.column_name IS NOT NULL THEN 'PRIMARY KEY'
+                        ELSE ''
+                     END AS key_type
+                  FROM
+                     information_schema.columns AS c
+                  LEFT JOIN
+                     information_schema.key_column_usage AS kcu
+                        ON c.table_schema = kcu.table_schema
+                        AND c.table_name = kcu.table_name
+                        AND c.column_name = kcu.column_name
+                  LEFT JOIN
+                     information_schema.table_constraints AS tc
+                        ON kcu.constraint_schema = tc.constraint_schema
+                        AND kcu.constraint_name = tc.constraint_name
+                  WHERE
+                     c.table_schema = 'public'
+                     AND c.table_name = $1
+                     AND (tc.constraint_type = 'PRIMARY KEY' OR tc.constraint_type IS NULL)
+                  ORDER BY
+                     c.ordinal_position ASC`,
+               [table],
+            ),
+            this.client.query(
+               `SELECT * FROM ${table} ORDER BY ${typeof options.sort === "number" ? options.sort : `"${options.sort}"`} ${options.order} LIMIT ${options.limit}`,
+            ),
+         ]);
 
-      return { count: data.count || 0, rows: data.rows, fields: fields.rows}
+         console.log({ count: data?.rowCount || 0, rows: data.rows, fields: fields.rows });
+
+         return { count: data?.rowCount || 0, rows: data?.rows ?? [], fields: fields.rows };
+      } catch (error) {
+         console.error(error);
+         throw new InternalServerError({ cause: error });
+      }
    }
 
    public async end(): Promise<IDatabase<"disconnected">> {

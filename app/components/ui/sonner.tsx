@@ -16,7 +16,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
          toastOptions={{
             classNames: {
                toast: "group toast !bg-high-contrast !text-background !border-black group-[.toaster]:shadow-lg",
-               success: "!bg-primary !text-neutral-50",
+               success: "!bg-foreground !text-neutral-50",
                warning: "!bg-yellow-500 !text-neutral-950",
                error: "!bg-red-500 !text-neutral-50",
                description: "group-[.toast]:text-zinc-500 dark:group-[.toast]:text-zinc-400",

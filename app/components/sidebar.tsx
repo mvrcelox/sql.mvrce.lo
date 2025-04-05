@@ -3,7 +3,7 @@
 import Button from "@/app/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Gauge, Loader2, Search, Table2, Terminal } from "lucide-react";
-import React, { useState } from "react";
+import { useState } from "react";
 import { motion } from "motion/react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
@@ -20,8 +20,7 @@ import {
 } from "@/app/components/ui/dropdown-menu";
 import { useMutation } from "@tanstack/react-query";
 import { signOut, useSession } from "next-auth/react";
-import { useSessionStorage } from "@uidotdev/usehooks";
-import exportAsClient from "@/lib/export-as-client";
+import { useSessionStorage } from "react-use";
 
 const sections = [
    [{ href: "/dashboard", label: "Dashboard", icon: Gauge, toggle: false }],
@@ -33,7 +32,7 @@ const sections = [
 ] as const;
 
 const sidebarAnimationDuration = 0.2;
-const Sidebar = exportAsClient(function () {
+function Sidebar() {
    const pathname = usePathname();
    const isCurrentPath = (href: string) => {
       return pathname.startsWith(href.split("/*")?.[0] ?? "");
@@ -51,7 +50,7 @@ const Sidebar = exportAsClient(function () {
             ease: "circInOut",
             duration: sidebarAnimationDuration,
          }}
-         className="sticky top-0 z-[3] flex w-[calc(2.75rem+1px)] flex-col self-stretch border-r bg-gray-100/50 md:w-[calc(3rem+1px)]"
+         className="sticky top-0 z-[3] flex w-[calc(2.75rem+1px)] flex-col self-stretch border-r bg-gray-100 md:w-[calc(3rem+1px)]"
       >
          <div className="bg-background grid max-h-[calc(2.5rem+1px)] place-items-center border-b py-2">
             <Logo className="size-6" />
@@ -78,7 +77,7 @@ const Sidebar = exportAsClient(function () {
                                        onClick={(e) => {
                                           if (!isActive || !nav.toggle) return;
                                           e.preventDefault();
-                                          setHide((old) => !old);
+                                          setHide(!hide);
                                        }}
                                        className={cn([
                                           "group relative isolation-auto grid h-10 place-items-center rounded-md",
@@ -114,24 +113,6 @@ const Sidebar = exportAsClient(function () {
             <SidebarUser />
          </nav>
       </motion.aside>
-   );
-});
-
-export function SidebarTrigger({ className }: { className?: string }) {
-   const [open, setOpen] = useState<boolean>(false);
-
-   return (
-      <Button
-         aria-expanded={open || undefined}
-         intent="ghost"
-         className={cn("group relative flex size-10 flex-col", className)}
-         onClick={() => {
-            setOpen((prev) => !prev);
-         }}
-      >
-         <span className="absolute top-3 left-2.5 block h-0.5 w-5 rotate-0 rounded-full bg-gray-700 transition-all duration-200 group-aria-expanded:top-[19px] group-aria-expanded:rotate-45"></span>
-         <span className="absolute bottom-3 left-2.5 block h-0.5 w-5 rotate-0 rounded-full bg-gray-700 transition-all duration-200 group-aria-expanded:bottom-[19px] group-aria-expanded:-rotate-45"></span>
-      </Button>
    );
 }
 
@@ -226,4 +207,22 @@ function SignOutButton() {
    );
 }
 
-export { Sidebar };
+export function SidebarTrigger({ className }: { className?: string }) {
+   const [open, setOpen] = useState<boolean>(false);
+
+   return (
+      <Button
+         aria-expanded={open || undefined}
+         intent="ghost"
+         className={cn("group relative flex size-10 flex-col", className)}
+         onClick={() => {
+            setOpen((prev) => !prev);
+         }}
+      >
+         <span className="absolute top-3 left-2.5 block h-0.5 w-5 rotate-0 rounded-full bg-gray-700 transition-all duration-200 group-aria-expanded:top-[19px] group-aria-expanded:rotate-45"></span>
+         <span className="absolute bottom-3 left-2.5 block h-0.5 w-5 rotate-0 rounded-full bg-gray-700 transition-all duration-200 group-aria-expanded:bottom-[19px] group-aria-expanded:-rotate-45"></span>
+      </Button>
+   );
+}
+
+export { Sidebar, Sidebar as default };

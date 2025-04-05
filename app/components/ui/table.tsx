@@ -33,25 +33,25 @@ THead.displayName = "Thead";
 
 export const TBody = React.forwardRef<HTMLTableSectionElement, React.ComponentPropsWithoutRef<"tbody">>(
    ({ className, ...props }, ref) => {
-      return <tbody ref={ref} className={cn(className)} {...props} />;
+      return <tbody className={cn(className)} {...props} ref={ref} />;
    },
 );
 TBody.displayName = "Tbody";
 
 export const TRow = React.forwardRef<HTMLTableRowElement, React.ComponentPropsWithoutRef<"tr">>(
    ({ className, ...props }, ref) => {
-      return <tr ref={ref} className={cn("[&>td]:border-b", className)} {...props} />;
+      return <tr className={cn("[&>td]:border-b", className)} {...props} ref={ref} />;
    },
 );
 TRow.displayName = "TRow";
 
-export const Th = React.forwardRef<HTMLTableHeaderCellElement, React.ComponentPropsWithoutRef<"th">>(
+export const Th = React.forwardRef<HTMLTableCellElement, React.ComponentPropsWithoutRef<"th">>(
    ({ className, ...props }, ref) => {
       return (
          <th
-            ref={ref}
             className={cn("border-r border-b bg-gray-100 px-3 text-left font-medium", className)}
             {...props}
+            ref={ref}
          />
       );
    },

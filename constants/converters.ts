@@ -22,12 +22,41 @@ export const availableSQLTypes = [
    "bpchar",
    "char",
    "bit",
+   "_text",
 ] as const;
 export type SQLType = (typeof availableSQLTypes)[number];
+
+export const DatatypeToJavascript = {
+   _int2: "array",
+   _int4: "array",
+   _text: "array",
+   bit: "string",
+   bool: "boolean",
+   bpchar: "string",
+   char: "string",
+   date: "date",
+   float4: "number",
+   float8: "number",
+   int2: "number",
+   int4: "number",
+   int8: "number",
+   interval: "string",
+   json: "json",
+   jsonb: "json",
+   numeric: "number",
+   text: "string",
+   time: "string",
+   timestamp: "date",
+   timestamptz: "date",
+   timetz: "string",
+   uuid: "string",
+   varchar: "string",
+} as const satisfies Record<SQLType, string>;
 
 export const DatatypeToTypescript: Record<SQLType, string> = {
    _int2: "Array<number>",
    _int4: "Array<number>",
+   _text: "Array<string>",
    bit: "string",
    bool: "boolean",
    bpchar: "string",
@@ -54,6 +83,7 @@ export const DatatypeToTypescript: Record<SQLType, string> = {
 export const DatatypeToZodObject: Record<SQLType, string> = {
    _int2: "z.array(z.number())",
    _int4: "z.array(z.number())",
+   _text: "z.array(z.string())",
    bit: "z.string()",
    bool: "z.boolean()",
    bpchar: "z.string()",

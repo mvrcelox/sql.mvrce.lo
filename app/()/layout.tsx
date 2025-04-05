@@ -1,5 +1,5 @@
 import { Footer } from "@/app/components/footer";
-import { Sidebar } from "@/app/components/sidebar";
+import { Sidebar } from "./client";
 import Provider from "../provider";
 
 export default function Layout({ children }: React.PropsWithChildren) {

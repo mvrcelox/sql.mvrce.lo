@@ -1,12 +1,8 @@
 import dotenv from "dotenv";
+import { expand } from "dotenv-expand";
 import { drizzle } from "drizzle-orm/node-postgres";
 
-dotenv.config();
-
-// if (process.env.POSTGRES_HOST !== "localhost") {
-//    console.error("This seed is only intended to be run in development mode");
-//    process.exit(1);
-// }
+expand(dotenv.config({ path: ".env.development" }));
 
 const db = drizzle(process.env.DATABASE_URL!);
 

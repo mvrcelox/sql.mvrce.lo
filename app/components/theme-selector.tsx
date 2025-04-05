@@ -25,14 +25,11 @@ interface Props extends React.ComponentPropsWithoutRef<"div"> {
    layoutGroupId?: string | undefined;
    size?: keyof typeof sizes;
 }
-export const ThemeToggle = ({ layoutGroupId, className, size = "md", ...props }: Props) => {
+function ThemeToggle({ layoutGroupId, className, size = "md", ...props }: Props) {
    const { theme: currentTheme, setTheme } = useTheme();
 
    return (
-      <div
-         className={cn("group/container overflow-hidden border bg-gray-100/50 p-1 leading-none", className)}
-         {...props}
-      >
+      <div className={cn("group/container overflow-hidden border bg-gray-100 p-1 leading-none", className)} {...props}>
          <LayoutGroup id={layoutGroupId}>
             {themes.map((theme) => {
                const Icon = theme.icon;
@@ -40,8 +37,9 @@ export const ThemeToggle = ({ layoutGroupId, className, size = "md", ...props }:
 
                return (
                   <Button
+                     suppressHydrationWarning
                      key={theme.value}
-                     aria-selected={isSelected || undefined}
+                     aria-selected={isSelected || false}
                      intent="ghost"
                      size="icon"
                      className={cn("aria-selected:text-foreground relative !bg-transparent", sizes[size])}
@@ -65,4 +63,6 @@ export const ThemeToggle = ({ layoutGroupId, className, size = "md", ...props }:
          </LayoutGroup>
       </div>
    );
-};
+}
+
+export { ThemeToggle, ThemeToggle as default };

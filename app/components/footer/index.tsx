@@ -1,7 +1,8 @@
-import { ThemeToggle } from "@/app/components/theme-selector";
 import { Logo } from "@/app/components/ui/logo";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+
+import { ThemeToggle } from "./client";
 
 export function Footer({
    className,
@@ -11,7 +12,7 @@ export function Footer({
       <footer
          {...props}
          className={cn(
-            "bg-background flex h-8 self-stretch border-t text-sm md:h-[calc(2.5rem+1px)] [&>*:not(:last-child)]:border-r",
+            "bg-background flex h-[calc(2rem+1px)] self-stretch border-t text-sm md:h-[calc(2.5rem+1px)] [&>*:not(:last-child)]:border-r",
             className,
          )}
       >
@@ -21,7 +22,9 @@ export function Footer({
             <span>0001</span>
          </div>
          <div className="shrink-0 grow"></div>
+
          <ThemeToggle className="shrink-0 border-0 [&>button]:size-6 [&>button]:rounded-sm md:[&>button]:size-8 md:[&>button]:rounded-[3px]" />
+
          <Link
             href="https://github.com/mvrcelitos"
             target="_blank"

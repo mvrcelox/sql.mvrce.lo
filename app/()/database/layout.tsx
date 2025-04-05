@@ -1,5 +1,5 @@
 import ScriptsProvider from "@/app/components/scripts";
-import { Sidebar } from "./components/sidebar";
+import { Sidebar } from "./client";
 
 export const maxDuration = 5;
 

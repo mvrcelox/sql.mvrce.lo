@@ -7,7 +7,6 @@ import { createPSQLDatabase } from "@/lib/database-factory";
 import { DataTable } from "@/app/components/data-table";
 import { Metadata } from "next";
 import { loadSearchParams } from "./search-params";
-import DataTableToolbar from "@/app/components/data-table-toolbar";
 
 interface Params {
    databaseId: string;
@@ -45,26 +44,25 @@ const getData = async (params: Params, searchParams: SearchParams) => {
    try {
       await client?.connect();
    } catch (error) {
+      console.error("Can't connect to database");
       console.error(error);
       return;
    }
 
    if (client.status === "disconnected") {
-      console.error("is disconnected, cant query");
+      console.error("Database is disconnected, cant query");
       return;
    }
 
-   const ordenation = searchParams?.order?.toLowerCase() === "desc" ? "DESC" : "ASC";
-   const limit = searchParams?.limit ?? 200;
-   const sort = searchParams?.sort ?? "id";
-
    try {
-      const data = await client.query(
-         `SELECT * FROM ${params.tableName} as t ORDER BY ${sort} ${ordenation} LIMIT ${limit}`,
-      );
+      const data = await client.getTable(params.tableName, {
+         sort: searchParams?.sort ?? 1,
+         order: searchParams?.order?.toLowerCase() === "desc" ? "DESC" : "ASC",
+         limit: Number(searchParams?.limit) || 200,
+      });
+
       if (!data) return;
-      // const hiddenColumns: string[] = searchParams?.hide?.split(",") ?? [];
-      // data.fields = data.fields.filter((field) => !hiddenColumns.includes(field?.name as string));
+
       return data;
    } catch (error) {
       if ((error as { code?: string })?.code === "42P01") {
@@ -84,14 +82,16 @@ export default async function Page({
    const awaitedSearchParams = await loadSearchParams(searchParams);
 
    const data = await getData(awaitedParams, awaitedSearchParams);
-   const fields = data?.fields && typeof data?.fields === "object" ? JSON.parse(JSON.stringify(data?.fields)) : [];
+
+   const count = data?.count || 0;
+   const fields = data?.fields ?? [];
+   const rows = data?.rows ?? [];
 
    return (
       <main className="flex flex-initial grow flex-col self-stretch overflow-hidden bg-gray-100">
          <TableWrapper>
-            <DataTable fields={fields} rows={data?.rows ?? []} />
+            <DataTable count={count} fields={fields} rows={rows} />
          </TableWrapper>
-         <DataTableToolbar />
       </main>
    );
 }

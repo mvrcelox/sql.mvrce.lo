@@ -33,13 +33,12 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import Expand from "@/app/components/ui/expand";
 import { cn } from "@/lib/utils";
-import { useSessionStorage } from "@uidotdev/usehooks";
+import { useSessionStorage } from "react-use";
 import { usePathname } from "next/navigation";
 import isNumber from "@/helpers/is-number";
 import { useDatabasesStore } from "@/stores/databases";
-import exportAsClient from "@/lib/export-as-client";
 
-const Sidebar = exportAsClient(function () {
+function Sidebar() {
    const [search, setSearch] = useState<null | string>(null);
    // const { connecteds, connect } = useDatabasesStore();
 
@@ -102,13 +101,6 @@ const Sidebar = exportAsClient(function () {
    }, [pathname, connect, find, databases]);
 
    const [hide] = useSessionStorage<boolean>("sub-sidebar", false);
-
-   // const [hide] = useQueryState("hide-sidebar", {
-   //    clearOnDefault: true,
-   //    defaultValue: false,
-   //    eq: (a: boolean, b: boolean) => a == b,
-   //    parse: (value: string) => (value === "true" ? true : false),
-   // });
 
    return (
       <AnimatePresence>
@@ -201,7 +193,7 @@ const Sidebar = exportAsClient(function () {
          )}
       </AnimatePresence>
    );
-});
+}
 
 function DatabaseItem({ database, state }: { database: GetDatabasesReturn[number]; state: string }) {
    const { find, connect, disconnect } = useDatabasesStore();
@@ -451,4 +443,4 @@ function DatabaseItem({ database, state }: { database: GetDatabasesReturn[number
    );
 }
 
-export { Sidebar };
+export { Sidebar, Sidebar as default };

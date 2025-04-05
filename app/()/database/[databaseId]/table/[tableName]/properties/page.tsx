@@ -7,7 +7,6 @@ import { createPSQLDatabase } from "@/lib/database-factory";
 import { DataTable } from "@/app/components/data-table";
 import { Metadata } from "next";
 import { loadSearchParams } from "../search-params";
-import DataTableToolbar from "@/app/components/data-table-toolbar";
 
 interface Params {
    databaseId: string;
@@ -107,9 +106,8 @@ export default async function Page({
    return (
       <main className="flex flex-initial grow flex-col self-stretch overflow-hidden bg-gray-100">
          <TableWrapper>
-            <DataTable fields={fields} rows={data?.rows ?? []} editable={false} />
+            <DataTable count={data?.rows?.length || 0} fields={fields} rows={data?.rows ?? []} editable={false} />
          </TableWrapper>
-         <DataTableToolbar />
       </main>
    );
 }

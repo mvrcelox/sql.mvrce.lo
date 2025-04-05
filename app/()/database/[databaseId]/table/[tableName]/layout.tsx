@@ -1,3 +1,4 @@
+import DataTableToolbar from "@/app/components/data-table-toolbar";
 import TableHeader from "../header";
 
 export default function Layout({ children }: React.PropsWithChildren) {
@@ -5,6 +6,7 @@ export default function Layout({ children }: React.PropsWithChildren) {
       <div className="flex grow flex-col self-stretch overflow-hidden">
          <TableHeader />
          {children}
+         <DataTableToolbar />
       </div>
    );
 }

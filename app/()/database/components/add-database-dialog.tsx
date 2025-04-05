@@ -54,6 +54,7 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
       mutationKey: ["test-database-connection"],
       mutationFn: async (values: DatabaseInput) => {
          clearErrors();
+
          const safe = await DatabaseSchema.safeParseAsync(values);
          if (!safe.success && safe.error) {
             for (const issue of safe.error.issues) {
@@ -296,7 +297,13 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
                               disabled={isTesting}
                               intent="outline"
                               className="xs:ml-auto relative overflow-hidden"
-                              onClick={() => test(getValues())}
+                              onClick={() => {
+                                 if (!navigator.onLine) {
+                                    toast.error("You are offline.");
+                                    return;
+                                 }
+                                 test(getValues());
+                              }}
                            >
                               Test connection
                               {isTesting ? (
@@ -315,7 +322,7 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
                               )}
                            >
                               Submit
-                              {isTesting && (
+                              {false && (
                                  <span className="absolute inset-0 grid size-full place-items-center rounded-[inherit] bg-inherit">
                                     <Loader2 className="size-4 shrink-0 animate-spin" />
                                  </span>

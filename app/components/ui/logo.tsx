@@ -1,12 +1,14 @@
 import { cn } from "@/lib/utils";
 
 export function Logo({ className, ...props }: React.SVGAttributes<SVGElement>) {
+   return <span className={cn("bg-primary block size-5 shrink-0", className, "rounded-[50%] rounded-tl-[20%]")} />;
+
    return (
       <svg
          viewBox="0 0 16 16"
          fill="none"
          xmlns="http://www.w3.org/2000/svg"
-         className={cn("size-5 shrink-0 fill-primary", className)}
+         className={cn("fill-primary size-5 shrink-0", className)}
          {...props}
       >
          <path d="M14 2L8 0L2 2L0 8L2 14L8 16L14 14L16 8L14 2Z" />

@@ -33,7 +33,7 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import Expand from "@/app/components/ui/expand";
 import { cn } from "@/lib/utils";
-import { useSessionStorage } from "react-use";
+import { useSessionStorage } from "@uidotdev/usehooks";
 import { usePathname } from "next/navigation";
 import isNumber from "@/helpers/is-number";
 import { useDatabasesStore } from "@/stores/databases";

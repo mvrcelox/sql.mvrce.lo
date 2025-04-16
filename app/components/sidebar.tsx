@@ -4,7 +4,7 @@ import Button from "@/app/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Gauge, Loader2, Search, Table2, Terminal } from "lucide-react";
 import { useState } from "react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/app/components/ui/tooltip";
@@ -20,7 +20,8 @@ import {
 } from "@/app/components/ui/dropdown-menu";
 import { useMutation } from "@tanstack/react-query";
 import { signOut, useSession } from "next-auth/react";
-import { useSessionStorage } from "react-use";
+import { useHover, useSessionStorage } from "@uidotdev/usehooks";
+import useEffectAfterMount from "@/hooks/use-effect-after-mount";
 
 const sections = [
    [{ href: "/dashboard", label: "Dashboard", icon: Gauge, toggle: false }],
@@ -31,6 +32,7 @@ const sections = [
    ],
 ] as const;
 
+const offset = 100;
 const sidebarAnimationDuration = 0.2;
 function Sidebar() {
    const pathname = usePathname();
@@ -39,6 +41,16 @@ function Sidebar() {
    };
 
    const [hide, setHide] = useSessionStorage<boolean>("sub-sidebar", false);
+
+   const [hover, setHover] = useState<number | null>(null);
+   const [direction, setDirection] = useState<number>(0);
+
+   const [ref, hovering] = useHover();
+
+   useEffectAfterMount(() => {
+      setHover(null);
+      return () => setHover(null);
+   }, [hovering]);
 
    return (
       <motion.aside
@@ -56,24 +68,24 @@ function Sidebar() {
             <Logo className="size-6" />
          </div>
 
-         <nav className="flex shrink-0 grow flex-col gap-2 self-stretch p-1">
-            {sections.map((section, idx) => {
-               return (
-                  <div key={idx} className="flex flex-col gap-1 self-stretch">
-                     {section.map((nav) => {
-                        const isActive = isCurrentPath(nav.href);
-                        return (
-                           <TooltipProvider
-                              key={nav.href}
-                              delayDuration={0}
-                              skipDelayDuration={0}
-                              disableHoverableContent
-                           >
-                              <Tooltip>
+         <nav ref={ref} className="flex shrink-0 grow flex-col gap-2 self-stretch p-1">
+            <TooltipProvider delayDuration={0} skipDelayDuration={0} disableHoverableContent>
+               {sections.map((section, idx) => {
+                  return (
+                     <div key={idx} className="flex flex-col gap-1 self-stretch">
+                        {section.map((nav, subidx) => {
+                           const isHover = hover === idx * 100 + subidx;
+                           const isActive = isCurrentPath(nav.href);
+                           return (
+                              <Tooltip key={nav.href}>
                                  <TooltipTrigger asChild>
                                     <Link
                                        href={nav.href}
                                        aria-selected={isActive || undefined}
+                                       onMouseEnter={() => {
+                                          setDirection(Math.sign(hover != null ? idx * offset + subidx - hover : 0));
+                                          setHover(idx * offset + subidx);
+                                       }}
                                        onClick={(e) => {
                                           if (!isActive || !nav.toggle) return;
                                           e.preventDefault();
@@ -81,34 +93,62 @@ function Sidebar() {
                                        }}
                                        className={cn([
                                           "group relative isolation-auto grid h-10 place-items-center rounded-md",
-                                          isActive
-                                             ? cn(
-                                                  "!bg-background text-primary hover:text-primary-hover pr-px",
-                                                  hide ? "" : null,
-                                               )
-                                             : "bg-transparent text-gray-500 hover:bg-gray-200 hover:text-gray-700",
+                                          isActive && hover == null
+                                             ? cn("text-primary hover:text-primary-hover pr-px", hide ? "" : null)
+                                             : "text-gray-500 hover:text-gray-700",
                                        ])}
                                     >
-                                       {isActive ? (
+                                       {isHover && (
                                           <motion.span
-                                             layoutId="sidebar-selector"
-                                             className="bg-primary/15 group-hover:bg-primary/20 ring-primary/50 absolute inset-0 size-full rounded-[inherit] shadow-xs"
+                                             layoutId="sidebar-hover-selector"
+                                             className="pointer-events-none absolute inset-0 -z-10 size-full rounded-md border bg-gray-200 shadow-xs"
+                                             transition={{ type: "spring", duration: 0.25, bounce: 0.2 }}
                                           />
-                                       ) : null}
-                                       <nav.icon className="size-5" strokeWidth={2} />
+                                       )}
+                                       <AnimatePresence>
+                                          {isActive && hover == null && (
+                                             <motion.span
+                                                initial={{ left: "-0.5rem" }}
+                                                animate={{ left: "-0.125rem" }}
+                                                exit={{ left: "-0.5rem" }}
+                                                layoutId="sidebar-active-selector"
+                                                className="bg-primary pointer-events-none absolute inset-y-0 -left-0.5 h-full w-1 rounded-xs shadow-xs"
+                                             />
+                                          )}
+                                       </AnimatePresence>
+                                       <nav.icon className="size-5 group-active:scale-95" strokeWidth={2} />
                                        <span className="sr-only">{nav.label}</span>
                                     </Link>
                                  </TooltipTrigger>
                                  <TooltipContent side="right" className="!pointer-events-none">
-                                    {nav.label}
+                                    <AnimatePresence mode="popLayout" custom={direction}>
+                                       <motion.span
+                                          key={hover}
+                                          layoutId="sidebar-hover-tooltip-content"
+                                          initial={"initial"}
+                                          animate={"animate"}
+                                          exit={"exit"}
+                                          custom={direction}
+                                          variants={{
+                                             initial: { opacity: 0, y: 32 * direction },
+                                             animate: { opacity: 1, y: 0 },
+                                             exit: { opacity: 0, y: -32 * direction },
+                                          }}
+                                          transition={{ type: "spring", duration: 0.2, bounce: 0 }}
+                                          className="block truncate"
+                                       >
+                                          {nav.label}
+                                       </motion.span>
+                                    </AnimatePresence>
                                  </TooltipContent>
                               </Tooltip>
-                           </TooltipProvider>
-                        );
-                     })}
-                  </div>
-               );
-            })}
+                           );
+                        })}
+                     </div>
+                  );
+               })}
+            </TooltipProvider>
+
             <span role="separator" tabIndex={-1} aria-label="spacement" className="grow self-stretch" />
             <SidebarUser />
          </nav>
@@ -141,9 +181,7 @@ function SidebarUser() {
                   <span className="block size-8 rounded bg-gray-200" />
                )}
                <div className="flex flex-col">
-                  <div className="text-foreground text-sm">
-                     {session?.user?.id ?? 0} - {session?.user?.name ?? "Your username"}
-                  </div>
+                  <div className="text-foreground text-sm">{session?.user?.name ?? "Your username"}</div>
                   <div className="text-xs text-gray-500">{session?.user?.email ?? "example@email.com"}</div>
                </div>
             </div>

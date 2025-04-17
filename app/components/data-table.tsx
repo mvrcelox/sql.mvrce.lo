@@ -17,7 +17,7 @@ import {
    useReactTable,
    VisibilityState,
 } from "@tanstack/react-table";
-import { CSSProperties, RefObject, useRef, useState } from "react";
+import { CSSProperties, useRef, useState } from "react";
 import { Input } from "./ui/input";
 
 import {
@@ -37,7 +37,6 @@ import { DatatypeToJavascript } from "@/constants/converters";
 import { Tooltip, TooltipContent, TooltipProvider } from "./ui/tooltip";
 import { TooltipTrigger } from "@radix-ui/react-tooltip";
 import { toast } from "sonner";
-import { Portal } from "@radix-ui/react-portal";
 
 export interface GenericFieldProps {
    columnID: number;
@@ -158,7 +157,7 @@ export const DataTable = ({ fields = [], rows = [], editable = true }: DataTable
                            type={DatatypeToJavascript?.[field.type as keyof typeof DatatypeToJavascript] ?? "unknown"}
                            nullable={field.nullable == "YES"}
                            fallback={field.default}
-                           defaultValue={row.getValue(field.name)}
+                           defaultValue={row.getValue(column.id)}
                         />
                      );
                   },
@@ -278,7 +277,7 @@ function Cell({ id, name, type, nullable, defaultValue, readOnly }: CellProps) {
    const params = useParams<{ databaseId: string; tableName: string }>();
 
    const scriptId = useRef<string | undefined>(undefined);
-   const { setDatabase, setScript, getScripts, removeScript } = useScripts();
+   const { setDatabase, setScript, removeScript } = useScripts();
 
    const formatted = tableCellFormatter(defaultValue);
 
@@ -651,36 +650,36 @@ function Cell({ id, name, type, nullable, defaultValue, readOnly }: CellProps) {
    );
 }
 
-interface CellSelectionProps {
-   ref: RefObject<HTMLElement | null>;
-}
-function CellSelection({ ref }: CellSelectionProps) {
-   const container = document.querySelector("div[data-scroll-container]");
-   if (!container) return null;
+// interface CellSelectionProps {
+//    ref: RefObject<HTMLElement | null>;
+// }
+// export function CellSelection({ ref }: CellSelectionProps) {
+//    const container = document.querySelector("div[data-scroll-container]");
+//    if (!container) return null;
 
-   const rect = {
-      top:
-         (ref.current?.getBoundingClientRect().top ?? 0) -
-         (container.getBoundingClientRect().top ?? 0) +
-         (container.scrollTop ?? 0) -
-         1,
-      left:
-         (ref.current?.getBoundingClientRect().left ?? 0) -
-         (container.getBoundingClientRect().left ?? 0) +
-         (container.scrollLeft ?? 0) -
-         1,
-      width: (ref.current?.getBoundingClientRect()?.width ?? 0) + 2,
-      height: (ref.current?.getBoundingClientRect()?.height ?? 0) + 2,
-   };
+//    const rect = {
+//       top:
+//          (ref.current?.getBoundingClientRect().top ?? 0) -
+//          (container.getBoundingClientRect().top ?? 0) +
+//          (container.scrollTop ?? 0) -
+//          1,
+//       left:
+//          (ref.current?.getBoundingClientRect().left ?? 0) -
+//          (container.getBoundingClientRect().left ?? 0) +
+//          (container.scrollLeft ?? 0) -
+//          1,
+//       width: (ref.current?.getBoundingClientRect()?.width ?? 0) + 2,
+//       height: (ref.current?.getBoundingClientRect()?.height ?? 0) + 2,
+//    };
 
-   return (
-      <Portal container={container}>
-         <span style={rect} className="border-primary pointer-events-none absolute z-[12] block border shadow-xs">
-            {/* <span className="bg-primary absolute -top-1 -right-1 size-2 rounded-xs" /> */}
-         </span>
-      </Portal>
-   );
-}
+//    return (
+//       <Portal container={container}>
+//          <span style={rect} className="border-primary pointer-events-none absolute z-[12] block border shadow-xs">
+//             {/* <span className="bg-primary absolute -top-1 -right-1 size-2 rounded-xs" /> */}
+//          </span>
+//       </Portal>
+//    );
+// }
 
 function ContextMenuItemWithTooltip({
    children,

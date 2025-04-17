@@ -123,19 +123,6 @@ function DiscardChangesButton() {
    );
 }
 
-const variants = {
-   hidden: {
-      opacity: 0,
-      y: -20,
-      // transform: "translateY(-50%)",
-   },
-   visible: {
-      opacity: 1,
-      y: 0,
-      // transform: "translateY(0%)",
-   },
-};
-
 function HiddenColumnsButton() {
    const params = useParams() as { databaseId: string; tableName: string };
 
@@ -346,7 +333,7 @@ function ExportButton({ type }: ExportButtonProps) {
          navigator.clipboard.writeText(stringified);
          return result;
       },
-      onError: (error) => {
+      onError: () => {
          toast.error("An error happened trying to copy the properties to zod.");
       },
       onSuccess: () => toast("Zod object copied to clipboard."),

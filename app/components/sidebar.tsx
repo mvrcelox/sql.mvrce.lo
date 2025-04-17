@@ -124,7 +124,6 @@ function Sidebar() {
                                     <AnimatePresence mode="popLayout" custom={direction}>
                                        <motion.span
                                           key={hover}
-                                          layoutId="sidebar-hover-tooltip-content"
                                           initial={"initial"}
                                           animate={"animate"}
                                           exit={"exit"}

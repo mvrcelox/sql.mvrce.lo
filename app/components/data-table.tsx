@@ -110,7 +110,7 @@ function getCommonPinningStyles<TData>(column: Column<TData>): CSSProperties {
 const columnResizeMode = "onEnd" satisfies ColumnResizeMode;
 const columnResizeDirection = "ltr" satisfies ColumnResizeDirection;
 
-export const DataTable = ({ fields = [], rows = [], editable = true }: DataTableProps) => {
+export function DataTable({ fields = [], rows = [], editable = true }: DataTableProps) {
    const [hidden] = useQueryState(
       "hide",
       parseAsArrayOf(parseAsString).withDefault([]).withOptions({
@@ -258,7 +258,7 @@ export const DataTable = ({ fields = [], rows = [], editable = true }: DataTable
          </Table>
       </>
    );
-};
+}
 
 type CellType = "date" | "boolean" | "number" | "string" | "array" | "json" | "null" | "unknown";
 interface CellProps {

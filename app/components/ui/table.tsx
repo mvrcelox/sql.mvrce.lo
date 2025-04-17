@@ -4,7 +4,15 @@ import { cn } from "@/lib/utils";
 
 export const TableWrapper = React.forwardRef<HTMLDivElement, React.ComponentPropsWithoutRef<"div">>(
    ({ className, ...props }, ref) => {
-      return <div ref={ref} {...props} className={cn("w-full grow overflow-x-auto", className)} />;
+      return (
+         <div
+            aria-description="Table wrapper"
+            data-scroll-container
+            ref={ref}
+            {...props}
+            className={cn("relative w-full grow overflow-x-auto", className)}
+         />
+      );
    },
 );
 TableWrapper.displayName = "TableWrapper";
@@ -25,7 +33,7 @@ Table.displayName = "Table";
 export const THead = React.forwardRef<HTMLTableSectionElement, React.ComponentPropsWithoutRef<"thead">>(
    ({ className, ...props }, ref) => {
       return (
-         <thead ref={ref} className={cn("sticky top-0 left-0 z-20 h-9 border-b bg-gray-100", className)} {...props} />
+         <thead ref={ref} className={cn("sticky top-0 left-0 z-10 h-9 border-b bg-gray-100", className)} {...props} />
       );
    },
 );

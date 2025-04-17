@@ -36,6 +36,7 @@ export default function ScriptsProvider({ children }: React.PropsWithChildren) {
    const getScripts = () => {
       if (!databaseRef.current) return [];
 
+      console.log({ databases });
       const dbIndex = databases?.findIndex((x) => x.databaseId === databaseRef.current);
       if (dbIndex === -1) return [];
 
@@ -56,6 +57,43 @@ export default function ScriptsProvider({ children }: React.PropsWithChildren) {
          databases[index].scripts = [];
          return [...databases];
       });
+   };
+
+   const setScript = (
+      sql: string,
+      options?: {
+         id?: string;
+         callback?: CallbackFn | undefined;
+      },
+   ) => {
+      const databaseId = databaseRef.current;
+      if (!databaseId) {
+         toast.error(`Database wasn't selected.`);
+         return;
+      }
+
+      const dbIndex = databases.findIndex((y) => y.databaseId === databaseId);
+      const copy: typeof databases = JSON.parse(JSON.stringify(databases));
+
+      const { id = uuidv4(), callback } = options ?? {};
+
+      const script = { id, sql, callback };
+      if (dbIndex === -1) {
+         copy.push({ databaseId, scripts: [script] });
+         setDatabases([...copy]);
+         return id;
+      }
+
+      const scriptIndex = copy[dbIndex].scripts.findIndex((y) => y.id === id);
+      if (scriptIndex === -1) {
+         copy[dbIndex].scripts.push(script);
+         setDatabases([...copy]);
+         return id;
+      }
+
+      copy[dbIndex].scripts[scriptIndex] = script;
+      setDatabases([...copy]);
+      return id;
    };
 
    const appendScript = (sql: string, callback?: CallbackFn | undefined) => {
@@ -104,7 +142,7 @@ export default function ScriptsProvider({ children }: React.PropsWithChildren) {
       }
    };
 
-   const removeScript = (scriptId: string) => {
+   const removeScript = (id: string) => {
       const databaseId = databaseRef.current;
       if (!databaseRef.current) {
          toast.error("Database wasn't selected");
@@ -113,14 +151,16 @@ export default function ScriptsProvider({ children }: React.PropsWithChildren) {
 
       try {
          const index = databases.findIndex((x) => x.databaseId === databaseId);
-         if (index === -1) throw "Database not found or doesn't exists.";
+         if (index === -1) {
+            throw "Database not found or doesn't exists.";
+         }
 
-         const script = databases[index].scripts.findIndex((script) => script.id === scriptId);
+         const script = databases[index].scripts.findIndex((script) => script.id === id);
          if (script === -1) throw "Script not found or doesn't exists.";
 
          const copy: typeof databases = JSON.parse(JSON.stringify(databases));
 
-         copy[index].scripts = databases[index].scripts.filter((script) => script.id !== scriptId);
+         copy[index].scripts = databases[index].scripts.filter((script) => script.id !== id);
          setDatabases(copy);
       } catch (error) {
          toast.error(error as string);
@@ -176,6 +216,7 @@ export default function ScriptsProvider({ children }: React.PropsWithChildren) {
             scripts: currentDatabaseScripts,
             getScripts,
             clearScripts,
+            setScript,
             appendScript,
             updateScript,
             removeScript,

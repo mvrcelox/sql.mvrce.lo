@@ -7,6 +7,7 @@ export interface ScriptsContextProps {
    getScripts: () => string[];
    clearScripts: () => void;
 
+   setScript: (sql: string, options?: { id?: string; callback?: CallbackFn | undefined }) => string | undefined;
    appendScript: (sql: string, callback?: CallbackFn | undefined) => string | undefined;
    updateScript: (sql: string, scriptId: string, callback?: CallbackFn | undefined) => string | undefined;
    removeScript: (scriptId: string) => void | undefined;

@@ -1,6 +1,18 @@
 "use client";
 
-import { CheckCircle2, Eye, FileJson, FileType, Loader2, RefreshCw, Share, XCircle } from "lucide-react";
+import {
+   CheckCircle2,
+   Eye,
+   EyeOff,
+   FileJson,
+   FileType,
+   Loader2,
+   RefreshCw,
+   Search,
+   Share,
+   X,
+   XCircle,
+} from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import {
    DropdownMenu,
@@ -11,16 +23,18 @@ import {
    DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { parseAsArrayOf, parseAsInteger, parseAsString, useQueryState } from "nuqs";
-import { useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { Input } from "./ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Separator } from "./ui/separator";
 import Button from "./ui/button";
 import { getDatabaseProperties } from "@/models/databases";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { DatatypeToTypescript, DatatypeToZodObject, SQLType } from "@/constants/converters";
 import { useScripts } from "./scripts";
+import debounce from "debounce";
+import { cn } from "@/lib/utils";
 
 export interface DataTableToolbarProps {
    type?: "columns" | "rows";
@@ -28,12 +42,16 @@ export interface DataTableToolbarProps {
 
 export default function DataTableToolbar({ type = "rows" }: DataTableToolbarProps) {
    return (
-      <div className="bg-background flex h-[calc(2.5rem+1px)] items-center gap-1 self-stretch border-t p-1">
+      <div className="flex h-[calc(2.5rem+1px)] items-center gap-1 self-stretch border-t bg-gray-100 p-1">
          <RefreshButton />
-         <Separator orientation="vertical" className="-mt-1 h-10" />
+
+         <Separator orientation="vertical" className="h-4 self-center" />
+
          <SaveChangesButton />
          <DiscardChangesButton />
-         <Separator orientation="vertical" className="-mt-1 h-10" />
+
+         <Separator orientation="vertical" className="h-4 self-center" />
+
          <HiddenColumnsButton />
          <ExportButton type={type} />
          <LimitInput />
@@ -105,7 +123,25 @@ function DiscardChangesButton() {
    );
 }
 
+const variants = {
+   hidden: {
+      opacity: 0,
+      y: -20,
+      // transform: "translateY(-50%)",
+   },
+   visible: {
+      opacity: 1,
+      y: 0,
+      // transform: "translateY(0%)",
+   },
+};
+
 function HiddenColumnsButton() {
+   const params = useParams() as { databaseId: string; tableName: string };
+
+   const [open, setOpen] = useState<boolean>(false);
+   const [mode, setMode] = useState<"idle" | "search">("idle");
+   const [search, setSearch] = useState<string>("");
    const [columns, setColumns] = useQueryState(
       "hide",
       parseAsArrayOf(parseAsString).withDefault([]).withOptions({
@@ -114,8 +150,41 @@ function HiddenColumnsButton() {
       }),
    );
 
+   const { data, isLoading } = useQuery({
+      queryKey: ["get-properties", params],
+      queryFn: async () => {
+         const [properties, err] = await getDatabaseProperties({
+            databaseId: +params.databaseId,
+            tableName: params.tableName,
+         });
+
+         if (err) {
+            toast.error(err.message);
+            return [];
+         }
+
+         return properties;
+      },
+      refetchOnMount: true,
+      refetchInterval: false,
+      refetchOnReconnect: false,
+   });
+
+   const handleInputChange = useCallback(
+      debounce((e: React.ChangeEvent<HTMLInputElement>) => {
+         setSearch(e.target?.value ?? "");
+      }, 200),
+      [],
+   );
+
    return (
-      <DropdownMenu>
+      <DropdownMenu
+         open={open}
+         onOpenChange={(open) => {
+            setMode("idle");
+            setOpen(open);
+         }}
+      >
          <TooltipProvider disableHoverableContent delayDuration={0}>
             <Tooltip>
                <TooltipTrigger asChild>
@@ -128,49 +197,82 @@ function HiddenColumnsButton() {
                <TooltipContent>Hidden columns</TooltipContent>
             </Tooltip>
          </TooltipProvider>
-         <DropdownMenuContent>
-            <DropdownMenuLabel>Hidden columns</DropdownMenuLabel>
-            {columns?.length ? (
-               columns.map((column) => {
-                  // const isHide = columns.find(x => x === column);
-                  return (
-                     <DropdownMenuItem
-                        key={column}
-                        onSelect={(e) => {
-                           if (columns.length > 1) e.preventDefault();
-                           setColumns((x) => x.filter((y) => y != column));
-                        }}
+         <DropdownMenuContent className="max-h-[70svh] min-w-52">
+            <div className="flex items-center gap-1">
+               {mode === "idle" ? (
+                  <DropdownMenuLabel>Hidden columns</DropdownMenuLabel>
+               ) : (
+                  <Input
+                     autoFocus
+                     size="sm"
+                     className="w-0 grow"
+                     defaultValue={search}
+                     onKeyDown={(e) => {
+                        e.stopPropagation();
+                     }}
+                     onChange={handleInputChange}
+                  />
+               )}
+               <div className="ml-auto">
+                  {mode === "idle" && (
+                     <Button
+                        disabled={isLoading}
+                        intent="ghost"
+                        size="icon"
+                        className="size-8"
+                        onClick={() => setColumns(columns?.length > 0 ? [] : (data?.map((x) => x?.Column) ?? []))}
                      >
-                        {column}
-                     </DropdownMenuItem>
-                     // <div
-                     //    key={column}
-                     //    className="flex items-center justify-between gap-4 rounded-none border-b px-2 py-1.5 text-sm text-gray-700 transition-colors last-of-type:border-b-0"
-                     // >
-                     //    <span className="max-w-64 truncate">{column}</span>
-                     //    <div className="flex overflow-hidden rounded-md border bg-gray-100">
-                     //       <button
-                     //          className="bg-gray-100 p-1 hover:bg-gray-200"
-                     //          onClick={() => {
-                     //             setColumns((x) => x.filter((y) => y != column));
-                     //             router.refresh();
-                     //          }}
-                     //       >
-                     //          <Eye className="size-4 shrink-0" />
-                     //       </button>
-                     //       <button
-                     //          className="hover:bg-background bg-background border-l p-1"
-                     //          // onClick={() => setColumns((x) => x.filter((y) => y != column))}
-                     //       >
-                     //          <EyeOff className="size-4 shrink-0" />
-                     //       </button>
-                     //    </div>
-                     // </div>
-                  );
-               })
-            ) : (
-               <div className="px-3 py-[0.6875rem] text-center text-xs text-gray-500">No columns are hidden</div>
-            )}
+                        {columns?.length > 0 ? (
+                           <Eye className="size-4 shrink-0" />
+                        ) : (
+                           <EyeOff className="size-4 shrink-0" />
+                        )}
+                     </Button>
+                  )}
+                  <Button
+                     intent="ghost"
+                     size="icon"
+                     className="size-8"
+                     onClick={() => {
+                        setMode(mode === "idle" ? "search" : "idle");
+                     }}
+                  >
+                     {mode === "idle" ? <Search className="size-4 shrink-0" /> : <X className="size-4 shrink-0" />}
+                  </Button>
+               </div>
+            </div>
+            <DropdownMenuSeparator />
+            <div className={cn("max-h-[calc(2rem*6)] overflow-y-auto", data && data?.length > 6 && "pr-1")} aria-hidden>
+               <div className="hidden flex-col gap-2 px-3 py-4 text-center text-xs text-gray-500 first:last:flex">
+                  No columns found.
+               </div>
+               {!isLoading
+                  ? data
+                       ?.filter((x) =>
+                          mode === "idle" ? true : x.Column?.toLowerCase().includes(search.toLowerCase()),
+                       )
+                       ?.map((item) => {
+                          const isHide = columns.find((x) => x === item.Column);
+                          const Icon = isHide ? EyeOff : Eye;
+                          return (
+                             //   <motion.div key={item.Column} className="block">
+                             <DropdownMenuItem
+                                key={item.Column}
+                                onSelect={(e) => {
+                                   e.preventDefault();
+                                   setColumns((x) =>
+                                      isHide ? x.filter((y) => y != item.Column) : [...x, item.Column],
+                                   );
+                                }}
+                             >
+                                <Icon className="size-4 shrink-0" />
+                                {item.Column}
+                             </DropdownMenuItem>
+                             //   </motion.div>
+                          );
+                       })
+                  : null}
+            </div>
          </DropdownMenuContent>
       </DropdownMenu>
    );
@@ -198,6 +300,7 @@ function ExportButton({ type }: ExportButtonProps) {
 
          return properties;
       },
+      onError: () => toast.error("An error happened getting the table properties."),
    });
 
    const { mutate: exportToTypescript, isPending: isExportingToTypescript } = useMutation({
@@ -216,9 +319,10 @@ function ExportButton({ type }: ExportButtonProps) {
 
          const stringified = JSON.stringify(result, undefined, 2).replace(/("\w+?"): "(.*?)"/g, "$1: $2");
          navigator.clipboard.writeText(stringified);
-         toast("Typescript copied to clipboard.");
          return result;
       },
+      onError: () => toast.error("An error happened trying to copy the properties to typescript."),
+      onSuccess: () => toast("Typescript copied to clipboard."),
    });
 
    const { mutate: exportToZodObject, isPending: isExportingToZodObject } = useMutation({
@@ -238,12 +342,18 @@ function ExportButton({ type }: ExportButtonProps) {
             return acc;
          }, {});
 
+         console.log(properties);
+         console.log(result);
+
          const stringified = JSON.stringify(result, undefined, 2).replace(/("\w+?"): "(.*?)"/g, "$1: $2");
          navigator.clipboard.writeText(stringified);
-         toast("Zod object copied to clipboard.");
-
          return result;
       },
+      onError: (error) => {
+         console.log(error);
+         toast.error("An error happened trying to copy the properties to zod.");
+      },
+      onSuccess: () => toast("Zod object copied to clipboard."),
    });
 
    return (

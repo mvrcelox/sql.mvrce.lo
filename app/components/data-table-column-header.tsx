@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useQueryState, parseAsArrayOf, parseAsString } from "nuqs";
-import { ArrowDownWideNarrow, ArrowUpWideNarrow, ChevronDown, EyeOff, X } from "lucide-react";
+import { ArrowDownWideNarrow, ArrowUpWideNarrow, ChevronDown, EyeOff, Pin, PinOff, X } from "lucide-react";
 
 import { buttonVariants } from "@/app/components/ui/button";
 import {
@@ -15,12 +15,14 @@ import {
 } from "@/app/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { Column } from "@tanstack/react-table";
 
 export interface DataTableColumnHeaderProps extends React.ComponentPropsWithoutRef<"div"> {
    id: string;
+   column?: Column<unknown, unknown>;
 }
 
-export const DataTableColumnHeader = ({ children, id, className, ...props }: DataTableColumnHeaderProps) => {
+export const DataTableColumnHeader = ({ children, id, column, className, ...props }: DataTableColumnHeaderProps) => {
    const [hidden, setHidden] = useQueryState("hide", {
       ...parseAsArrayOf(parseAsString),
       clearOnDefault: true,
@@ -105,6 +107,21 @@ export const DataTableColumnHeader = ({ children, id, className, ...props }: Dat
                )}
 
                <DropdownMenuSeparator />
+               {column?.getCanPin() && (
+                  <DropdownMenuItem onSelect={() => column.pin(column.getIsPinned() ? false : "left")}>
+                     {column.getIsPinned() ? (
+                        <>
+                           <PinOff className="mr-2 size-4 shrink-0" />
+                           Unpin
+                        </>
+                     ) : (
+                        <>
+                           <Pin className="mr-2 size-4 shrink-0" />
+                           Pin
+                        </>
+                     )}
+                  </DropdownMenuItem>
+               )}
                <DropdownMenuItem
                   onSelect={() => {
                      if (hidden?.includes(id)) return;
@@ -119,16 +136,3 @@ export const DataTableColumnHeader = ({ children, id, className, ...props }: Dat
       </div>
    );
 };
-
-{
-   /* <th
-   key={field.columnID}
-   className="border-r border-r-zinc-200 px-3 font-normal last:border-r-0 dark:border-r-zinc-800">
-   <div className="flex items-center justify-between gap-2">
-      <span>{field.name}</span>
-      <Button size="icon-custom" intent="ghost" className="-mr-2 size-7">
-         <ChevronDown className="size-4 shrink-0" />
-      </Button>
-   </div>
-</th> */
-}

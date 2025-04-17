@@ -342,15 +342,11 @@ function ExportButton({ type }: ExportButtonProps) {
             return acc;
          }, {});
 
-         console.log(properties);
-         console.log(result);
-
          const stringified = JSON.stringify(result, undefined, 2).replace(/("\w+?"): "(.*?)"/g, "$1: $2");
          navigator.clipboard.writeText(stringified);
          return result;
       },
       onError: (error) => {
-         console.log(error);
          toast.error("An error happened trying to copy the properties to zod.");
       },
       onSuccess: () => toast("Zod object copied to clipboard."),

@@ -325,7 +325,6 @@ function Cell({ id, name, type, nullable, defaultValue, readOnly }: CellProps) {
                   break;
                }
                case "clear": {
-                  console.log("clearing");
                   reset();
                   break;
                }
@@ -355,7 +354,6 @@ function Cell({ id, name, type, nullable, defaultValue, readOnly }: CellProps) {
                break;
             }
             case "clear": {
-               console.log("clearing");
                reset();
                break;
             }
@@ -624,15 +622,6 @@ function Cell({ id, name, type, nullable, defaultValue, readOnly }: CellProps) {
 
                <ContextMenuSeparator />
                {/* <ContextMenuLabel>Actions</ContextMenuLabel> */}
-
-               <ContextMenuItem
-                  onSelect={() => {
-                     const scripts = getScripts();
-                     console.log({ scripts });
-                  }}
-               >
-                  Teste
-               </ContextMenuItem>
                <ContextMenuItem
                   disabled={value === "[NULL]" || !nullable}
                   onSelect={() => handleOnBlur(null)}

@@ -35,8 +35,6 @@ export default function ScriptsProvider({ children }: React.PropsWithChildren) {
 
    const getScripts = () => {
       if (!databaseRef.current) return [];
-
-      console.log({ databases });
       const dbIndex = databases?.findIndex((x) => x.databaseId === databaseRef.current);
       if (dbIndex === -1) return [];
 

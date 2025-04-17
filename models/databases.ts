@@ -194,13 +194,11 @@ export const getDatabaseProperties = authedProcedure
    })
    .handler(async ({ input }) => {
       const { databaseId, tableName } = input;
-
       const [found, err] = await findDatabase(databaseId);
-      if (err) throw err;
-      if (!found) throw new NotFoundError("Database not found or doesn't exists.");
 
-      const { host, database, username, password, port } = found;
-      const client = createPSQLDatabase({ host, database, username, password, port });
+      if (err) throw err;
+
+      const client = createPSQLDatabase(found);
 
       try {
          await client?.connect();

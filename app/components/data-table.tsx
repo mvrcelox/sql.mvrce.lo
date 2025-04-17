@@ -17,7 +17,7 @@ import {
    useReactTable,
    VisibilityState,
 } from "@tanstack/react-table";
-import { CSSProperties, useRef, useState } from "react";
+import { CSSProperties, RefObject, useRef, useState } from "react";
 import { Input } from "./ui/input";
 
 import {
@@ -31,13 +31,13 @@ import {
 import { parseAsArrayOf, parseAsString, useQueryState } from "nuqs";
 import { useScripts } from "./scripts";
 import { useParams } from "next/navigation";
-import { useHistoryState } from "@/hooks/use-history-state";
 import useEffectAfterMount from "@/hooks/use-effect-after-mount";
 import { GetTableReturn } from "@/lib/database-factory";
 import { DatatypeToJavascript } from "@/constants/converters";
 import { Tooltip, TooltipContent, TooltipProvider } from "./ui/tooltip";
 import { TooltipTrigger } from "@radix-ui/react-tooltip";
 import { toast } from "sonner";
+import { Portal } from "@radix-ui/react-portal";
 
 export interface GenericFieldProps {
    columnID: number;
@@ -58,7 +58,7 @@ export interface DataTableProps {
 
 interface TableCellFormatterReturn {
    type: "date" | "boolean" | "number" | "string" | "array" | "json" | "null" | "unknown";
-   data: string;
+   data: string | null;
    className?: string;
 }
 
@@ -78,18 +78,18 @@ function tableCellFormatter<T>(cell: T): TableCellFormatterReturn {
       case "string":
          return { type: "string", data: cell };
       case "object": {
-         if (cell === null) return { type: "null", className: "text-center text-gray-400", data: "[NULL]" };
+         if (cell === null) return { type: "null", className: "text-center text-gray-400", data: null };
          if (Array.isArray(cell)) return { type: "array", data: JSON.stringify(cell) };
          if (cell instanceof Date) return { type: "date", data: cell?.toISOString() };
          return { type: "json", data: JSON.stringify(cell) };
       }
       case "undefined":
-         return { type: "null", className: "text-center text-gray-400", data: "[NULL]" };
+         return { type: "null", className: "text-center text-gray-400", data: null };
       default:
          return {
             type: "null",
             className: "text-center text-gray-400",
-            data: "[NULL]",
+            data: null,
          };
       // case "null": return { type: 'null', className: "", format: () => <span>null</span> };
       // case "undefined": return { type: 'unknown', className: "", format: () => <span>undefined</span> };
@@ -105,7 +105,7 @@ function getCommonPinningStyles<TData>(column: Column<TData>): CSSProperties {
       position: isPinned ? "sticky" : "relative",
       width: column.getSize(),
       maxWidth: `max(${column.getSize()}px,60svw)`,
-      zIndex: isPinned ? 1 : 0,
+      zIndex: isPinned ? 13 : 0,
    };
 }
 const columnResizeMode = "onEnd" satisfies ColumnResizeMode;
@@ -134,7 +134,7 @@ export const DataTable = ({ fields = [], rows = [], editable = true }: DataTable
             header: "#",
             cell: ({ row }) => {
                return (
-                  <span aria-description="index" className="block px-0 text-center">
+                  <span aria-description="index" className="z-[13] grid place-items-center truncate px-0 text-center">
                      {row.index + 1}
                   </span>
                );
@@ -146,7 +146,7 @@ export const DataTable = ({ fields = [], rows = [], editable = true }: DataTable
             (field) =>
                ({
                   accessorKey: field.name,
-                  cell: ({ row }) => {
+                  cell: ({ row, column }) => {
                      const id = (row.original as Record<string, string | number>)?.[primaryKey?.name || ""];
                      return (
                         <Cell
@@ -190,18 +190,20 @@ export const DataTable = ({ fields = [], rows = [], editable = true }: DataTable
          <Table className="bg-background w-max" style={{ direction: columnResizeDirection }}>
             <THead>
                {table.getHeaderGroups().map((headerGroup) => (
-                  <TRow key={headerGroup.id} className="isolate bg-gray-100">
+                  <TRow key={headerGroup.id} className="bg-gray-100">
                      {headerGroup.headers.map((header, index) => {
                         return (
                            <Th
                               key={header.id}
+                              data-pinned={header.column.getIsPinned() || undefined}
                               colSpan={header.colSpan}
-                              className={cn("group isolation-auto bg-gray-100")}
+                              className={cn("group bg-gray-100")}
                               style={{ ...getCommonPinningStyles(header.column) }}
                            >
                               {index > 0 ? (
                                  <DataTableColumnHeader
                                     id={header.id}
+                                    column={header.column}
                                     // className={
                                     //    table.getState().columnSizingInfo.deltaOffset !== 0 ? "pointer-events-none" : ""
                                     // }
@@ -242,11 +244,11 @@ export const DataTable = ({ fields = [], rows = [], editable = true }: DataTable
                         return (
                            <Td
                               role="cell"
+                              data-pinned={cell.column.getIsPinned() ? true : undefined}
                               key={cell.id}
-                              className="bg-background group-hover/tr:text-foreground focus-within:[&>div]:bg-accent focus-within:[&>div]:ring-c400 relative overflow-visible p-0 group-hover/tr:bg-gray-100 focus-within:z-10 focus-within:[&>div]:ring-1"
+                              className="bg-background group-hover/tr:text-foreground group/td focus-within:[&>div]:bg-accent focus-within:[&>div]:ring-c400 overflow-visible p-0 group-hover/tr:bg-gray-100 focus-within:z-10 focus-within:[&>div]:ring-1"
                               style={{ ...getCommonPinningStyles(cell.column) }}
                            >
-                              {/* <div role="cell" className="pointer-events-none absolute inset-0 h-full w-full" /> */}
                               {flexRender(cell.column.columnDef.cell, cell.getContext())}
                            </Td>
                         );
@@ -276,47 +278,50 @@ function Cell({ id, name, type, nullable, defaultValue, readOnly }: CellProps) {
    const params = useParams<{ databaseId: string; tableName: string }>();
 
    const scriptId = useRef<string | undefined>(undefined);
-   const { setDatabase, appendScript, updateScript, removeScript } = useScripts();
+   const { setDatabase, setScript, getScripts, removeScript } = useScripts();
 
    const formatted = tableCellFormatter(defaultValue);
 
-   const {
-      value,
-      setValue,
-      initialValue,
-      previewUndo,
-      canUndo,
-      undo: _undo,
-      previewRedo,
-      canRedo,
-      redo: _redo,
-      reset: _reset,
-   } = useHistoryState<string | null>(formatted.data);
+   const [focus, setFocus] = useState<boolean>(false);
+   const [index, setIndex] = useState<number>(0);
+   const [history, setHistory] = useState<(string | null)[]>([formatted.data]);
+
+   const initial = history[0];
+   const value = history[index];
+   function setValue(value: string | null) {
+      setHistory((x) => [...x.slice(0, index + 1), value]);
+      setIndex((x) => x + 1);
+   }
+
+   const canUndo = index > 0;
+   const canRedo = index < history.length - 1;
+
+   function clearScript() {
+      if (!scriptId.current) return;
+      removeScript(scriptId.current);
+      scriptId.current = undefined;
+   }
 
    function undo() {
-      _undo();
+      setIndex((x) => x - 1);
+      const undo = history[index - 1];
 
-      // if the undo has no changes from actual value
-      if (previewUndo === initialValue) {
-         if (!scriptId.current) return;
-         // Clear the current script on sql editor and their id stored
-         removeScript(scriptId.current);
-         scriptId.current = undefined;
-         return;
-      }
+      // If hasn't an undo option
+      if (undo === undefined) return;
+      if (undo === initial) return clearScript();
 
       // Format the data to SQL format
-      const sql = getSQL(previewUndo!);
+      const sql = getSQL(undo!);
       if (!sql) return;
 
       // Append/update the script
-      if (scriptId.current)
-         updateScript(sql, scriptId.current, (method) => {
+      setScript(sql, {
+         id: scriptId.current,
+         callback: (method) => {
             scriptId.current = undefined;
             switch (method) {
                case "run": {
-                  console.log("running");
-                  reset(previewUndo!);
+                  reset(undo);
                   break;
                }
                case "clear": {
@@ -325,57 +330,55 @@ function Cell({ id, name, type, nullable, defaultValue, readOnly }: CellProps) {
                   break;
                }
             }
-         });
-      else scriptId.current = appendScript(sql);
+         },
+      });
    }
 
    function redo() {
-      _redo();
+      setIndex((x) => x + 1);
+      const redo = history[index + 1];
 
-      // If the redo value has no changes from actual value
-      if (previewRedo === initialValue) {
-         if (!scriptId.current) return;
-
-         // Clear the current script on sql editor and their id stored
-         removeScript(scriptId.current);
-         scriptId.current = undefined;
-         return;
-      }
+      // If hasn't an redo option
+      if (redo === undefined) return;
+      if (redo === initial) return clearScript();
 
       // Format the data to SQL format
-      const sql = getSQL(previewRedo!);
+      const sql = getSQL(redo);
       if (!sql) return;
 
       // Append/update the script
-      if (scriptId.current)
-         updateScript(sql, scriptId.current, (method) => {
-            scriptId.current = undefined;
-            switch (method) {
-               case "run": {
-                  console.log("running");
-                  reset(previewRedo!);
-                  break;
-               }
-               case "clear": {
-                  console.log("clearing");
-                  reset();
-                  break;
-               }
+      function callback(method: "clear" | "run") {
+         scriptId.current = undefined;
+         switch (method) {
+            case "run": {
+               reset(redo);
+               break;
             }
-         });
-      else scriptId.current = appendScript(sql);
+            case "clear": {
+               console.log("clearing");
+               reset();
+               break;
+            }
+         }
+      }
+
+      scriptId.current = setScript(sql, {
+         id: scriptId.current,
+         callback,
+      });
    }
 
-   function reset(value?: typeof initialValue) {
-      _reset(value);
-      if (scriptId.current) removeScript(scriptId.current);
-   }
+   const reset = (value?: (typeof history)[number]) => {
+      clearScript();
+      setIndex(0);
+      setHistory((x) => [value ?? x[0]]);
+   };
 
-   function getSQL(current: string) {
+   function getSQL(current: string | null) {
       let sql = "";
       switch (type) {
          case "date": {
-            const date = new Date(current);
+            const date = new Date(current ?? "");
             if (isNaN(date.getTime())) return;
             sql = `'${date.toISOString()}'`;
             break;
@@ -387,14 +390,14 @@ function Cell({ id, name, type, nullable, defaultValue, readOnly }: CellProps) {
             break;
          }
          case "boolean": {
-            if (!["true", "false"].includes(current)) return;
+            if (!["true", "false"].includes(current ?? "")) return;
             sql = `${current}`;
             break;
          }
          case "json": {
             try {
-               JSON.parse(current);
-               sql = `'${current}'`;
+               const parsed = JSON.parse(current ?? "");
+               sql = `'${JSON.stringify(parsed)}'`;
             } catch {
                return;
             }
@@ -402,15 +405,15 @@ function Cell({ id, name, type, nullable, defaultValue, readOnly }: CellProps) {
          }
          case "array": {
             try {
-               JSON.parse(current);
-               sql = `'${current}'`;
+               const parsed = JSON.parse(current ?? "");
+               sql = `'${JSON.stringify(parsed)}'`;
             } catch {
                return;
             }
             break;
          }
          case "string": {
-            sql = `'${current}'`;
+            sql = `'${current ?? ""}'`;
             break;
          }
          default:
@@ -420,22 +423,10 @@ function Cell({ id, name, type, nullable, defaultValue, readOnly }: CellProps) {
    }
 
    function handleOnBlur(current: string | null) {
+      if (current === history[index]) return;
+      if (current === initial) return clearScript();
+
       let sql = "";
-
-      if (current === value) return;
-      if (current === initialValue) {
-         setValue(current);
-         if (scriptId.current) {
-            removeScript(scriptId.current);
-            scriptId.current = undefined;
-         }
-         return;
-      }
-
-      if (current === null) sql = `NULL`;
-
-      if (current === "" && value === null) return;
-
       switch (type) {
          case "date": {
             const date = new Date(current as string);
@@ -481,182 +472,224 @@ function Cell({ id, name, type, nullable, defaultValue, readOnly }: CellProps) {
          case "string":
             sql = `'${current}'`;
             break;
+         case "null":
+            sql = "NULL";
+            break;
       }
 
-      // Check if the value is valid base on the type of the date
-      if (current === value) {
-         if (inputRef.current) inputRef.current.value = current ?? "";
-         return;
-      }
+      // Check if the value is valid base on the type of the data
+      // if (inputRef.current) inputRef.current.value = current ?? "";
 
       setValue(current);
       setDatabase(params.databaseId);
-
       const script = `UPDATE ${params.tableName} SET ${name} = ${sql} WHERE id = ${id}`;
 
-      if (scriptId.current && value !== initialValue) {
-         const res = updateScript(script, scriptId.current, (method) => {
-            scriptId.current = undefined;
-            switch (method) {
-               case "run": {
-                  console.log("running");
-                  reset(current);
-                  break;
-               }
-               case "clear": {
-                  console.log("clearing");
-                  reset();
-                  break;
-               }
-            }
-         });
-         if (!res) scriptId.current = undefined;
-         return;
-      }
-
-      const uuid = appendScript(script, (method) => {
+      function callback(method: "clear" | "run") {
          scriptId.current = undefined;
          switch (method) {
             case "run": {
-               console.log("running");
-               reset(current);
+               setValue(current);
                break;
             }
             case "clear": {
-               console.log("clearing");
                reset();
                break;
             }
          }
-      });
-      scriptId.current = uuid;
-
-      return;
+      }
+      scriptId.current = setScript(script, { id: scriptId.current, callback });
    }
 
    useEffectAfterMount(() => {
-      if (inputRef.current) inputRef.current.value = value === "[NULL]" ? "" : (value ?? "");
+      if (!inputRef.current) return;
+      inputRef.current.value = value ?? "";
    }, [value]);
 
    return (
-      <ContextMenu>
-         <span className={cn("block w-full px-2 whitespace-nowrap", !readOnly && "invisible")}>{value}</span>
-         {readOnly ? null : (
-            <ContextMenuTrigger asChild>
-               <Input
-                  ref={inputRef}
-                  intent="none"
-                  size="none"
-                  data-changed={value != initialValue}
-                  onBlur={(e) => {
-                     // Always handle blur since !isTrusted is unreliable
-                     handleOnBlur(e.currentTarget.value);
-                  }}
-                  onKeyDown={(e) => {
-                     if (e.key === "Escape") {
-                        e.currentTarget.value = value ?? "";
-                        e.currentTarget.blur();
-                     }
-                     if (e.key === "Enter" && !e.ctrlKey) {
-                        e.currentTarget.blur();
-                     }
-                  }}
-                  className={cn(
-                     "data-[changed='true']:!bg-primary/10 absolute inset-0 h-full w-full rounded-none px-2 overflow-ellipsis",
-                     value
-                        ? "placeholder-shown:not-focus:text-center placeholder-shown:focus:placeholder:text-transparent"
-                        : "",
-                  )}
-                  placeholder={value === "[NULL]" ? value : undefined}
-                  defaultValue={value == "[NULL]" ? undefined : (value ?? "")}
-               />
-            </ContextMenuTrigger>
-         )}
-         <ContextMenuContent className="min-w-40" onCloseAutoFocus={(e) => e.preventDefault()}>
-            <div className="flex items-center">
-               <ContextMenuItemWithTooltip disabled={!canUndo} onSelect={() => undo()} tooltip="Undo" className="p-2">
-                  <Undo className="size-4 shrink-0" />
-               </ContextMenuItemWithTooltip>
-               <ContextMenuItemWithTooltip disabled={!canRedo} onSelect={() => redo()} tooltip="Redo" className="p-2">
-                  <Redo className="size-4 shrink-0" />
-               </ContextMenuItemWithTooltip>
-               <ContextMenuItemWithTooltip
-                  disabled={!canRedo && !canUndo}
-                  onSelect={() => reset()}
-                  tooltip="Reset"
-                  className="p-2"
-               >
-                  <RotateCcw className="size-4 shrink-0" />
-               </ContextMenuItemWithTooltip>
-               <ContextMenuItemWithTooltip
-                  tooltip="Copy"
-                  className="p-2"
-                  onClick={() => {
-                     try {
-                        navigator.clipboard.writeText(value ?? "");
-                     } catch {
-                        toast.error("Failed to copy to clipboard");
-                     }
-                  }}
-               >
-                  <Copy className="size-4 shrink-0" />
-               </ContextMenuItemWithTooltip>
-               <ContextMenuItemWithTooltip disabled tooltip="Find" className="p-2">
-                  <Search className="size-4 shrink-0" />
-               </ContextMenuItemWithTooltip>
-            </div>
-            <ContextMenuSeparator />
-            <div className="flex items-center justify-between gap-1 pr-1">
-               <ContextMenuLabel>Properties</ContextMenuLabel>
-            </div>
-            <div className="flex flex-col gap-1 px-1 pb-1 text-sm">
-               {/* <p className="flex items-center justify-between gap-1 self-stretch">
-                  <span className="text-gray-700">Name:</span>
-                  <span className="text-foreground block truncate font-medium">{name}</span>
-               </p> */}
-               <p className="flex items-center justify-between gap-1 self-stretch">
-                  <span className="text-gray-700">Type:</span>
-                  <span className="text-foreground block truncate font-medium">{type}</span>
-               </p>
-               {/* <p className="flex items-center justify-between gap-1 self-stretch">
-                  <span className="text-gray-700">Position:</span>
-                  <span className="text-foreground block truncate font-medium">{position}</span>
-               </p> */}
-               <p className="flex items-center justify-between gap-1 self-stretch">
-                  <span className="text-gray-700">Nullable:</span>
-                  <span className={cn("block size-2 rounded-full", nullable ? "bg-green-500" : "bg-red-500")} />
-               </p>
-            </div>
+      <>
+         <ContextMenu>
+            <span className={cn("block w-full px-2 whitespace-nowrap", !readOnly && "invisible")}>{value}</span>
+            {readOnly ? null : (
+               <ContextMenuTrigger asChild>
+                  <Input
+                     ref={inputRef}
+                     intent="none"
+                     size="none"
+                     data-changed={value != initial}
+                     onFocusCapture={() => setFocus(true)}
+                     onBlurCapture={() => setFocus(false)}
+                     onBlur={(e) => handleOnBlur(e.currentTarget.value)}
+                     onKeyDown={(e) => {
+                        if (
+                           e.ctrlKey &&
+                           e.key === "c" &&
+                           e.currentTarget.selectionStart === e.currentTarget.selectionEnd
+                        ) {
+                           e.preventDefault();
+                           navigator.clipboard.writeText(value ?? "");
+                           toast.success("Copied to clipboard");
+                        }
+                        if (e.ctrlKey && e.key === "z") {
+                           e.preventDefault();
+                           undo();
+                        }
+                        if (e.ctrlKey && e.key === "y") {
+                           e.preventDefault();
+                           redo();
+                        }
+                        if (e.key === "Escape") {
+                           e.currentTarget.value = value ?? "";
+                           e.currentTarget.blur();
+                        }
+                        if (e.key === "Enter" && !e.ctrlKey) {
+                           e.currentTarget.blur();
+                        }
+                     }}
+                     className={cn(
+                        "data-[changed='true']:!bg-primary/10 absolute inset-0 h-full w-full rounded-none px-2 overflow-ellipsis group-[data-pinned]:z-20",
+                        focus && "bg-background",
+                        value === null &&
+                           "placeholder-shown:not-focus:text-center placeholder-shown:focus:placeholder:text-transparent",
+                     )}
+                     placeholder={value === null ? "[NULL]" : undefined}
+                     defaultValue={value ?? ""}
+                  />
+               </ContextMenuTrigger>
+            )}
+            <ContextMenuContent className="min-w-40" onCloseAutoFocus={(e) => e.preventDefault()}>
+               <div className="flex items-center">
+                  <ContextMenuItemWithTooltip
+                     disabled={!canUndo}
+                     onSelect={() => undo()}
+                     tooltip="Undo"
+                     className="p-2"
+                  >
+                     <Undo className="size-4 shrink-0" />
+                  </ContextMenuItemWithTooltip>
+                  <ContextMenuItemWithTooltip
+                     disabled={!canRedo}
+                     onSelect={() => redo()}
+                     tooltip="Redo"
+                     className="p-2"
+                  >
+                     <Redo className="size-4 shrink-0" />
+                  </ContextMenuItemWithTooltip>
+                  <ContextMenuItemWithTooltip
+                     disabled={!canRedo && !canUndo}
+                     onSelect={() => reset()}
+                     tooltip="Reset"
+                     className="p-2"
+                  >
+                     <RotateCcw className="size-4 shrink-0" />
+                  </ContextMenuItemWithTooltip>
+                  <ContextMenuItemWithTooltip
+                     tooltip="Copy"
+                     className="p-2"
+                     onClick={() => {
+                        try {
+                           navigator.clipboard.writeText(value ?? "");
+                        } catch {
+                           toast.error("Failed to copy to clipboard");
+                        }
+                     }}
+                  >
+                     <Copy className="size-4 shrink-0" />
+                  </ContextMenuItemWithTooltip>
+                  <ContextMenuItemWithTooltip disabled tooltip="Find" className="p-2">
+                     <Search className="size-4 shrink-0" />
+                  </ContextMenuItemWithTooltip>
+               </div>
+               <ContextMenuSeparator />
+               <div className="flex items-center justify-between gap-1 pr-1">
+                  <ContextMenuLabel>Properties</ContextMenuLabel>
+               </div>
+               <div className="flex flex-col gap-1 px-1 pb-1 text-sm">
+                  {/* <p className="flex items-center justify-between gap-1 self-stretch">
+                     <span className="text-gray-700">Name:</span>
+                     <span className="text-foreground block truncate font-medium">{name}</span>
+                  </p> */}
+                  <p className="flex items-center justify-between gap-1 self-stretch">
+                     <span className="text-gray-700">Type:</span>
+                     <span className="text-foreground block truncate font-medium">{type}</span>
+                  </p>
+                  {/* <p className="flex items-center justify-between gap-1 self-stretch">
+                     <span className="text-gray-700">Position:</span>
+                     <span className="text-foreground block truncate font-medium">{position}</span>
+                  </p> */}
+                  <p className="flex items-center justify-between gap-1 self-stretch">
+                     <span className="text-gray-700">Nullable:</span>
+                     <span className={cn("block size-2 rounded-full", nullable ? "bg-green-500" : "bg-red-500")} />
+                  </p>
+               </div>
 
-            <ContextMenuSeparator />
-            {/* <ContextMenuLabel>Actions</ContextMenuLabel> */}
+               <ContextMenuSeparator />
+               {/* <ContextMenuLabel>Actions</ContextMenuLabel> */}
 
-            <ContextMenuItem
-               disabled={value === "[NULL]" || !nullable}
-               onSelect={() => handleOnBlur(null)}
-               className="gap-2"
-            >
-               <CircleDashed className="size-4 shrink-0" />
-               Set null
-            </ContextMenuItem>
-            {type === "boolean" ? (
                <ContextMenuItem
-                  disabled={value === null}
-                  onSelect={() => handleOnBlur(value === "true" ? "false" : "true")}
+                  onSelect={() => {
+                     const scripts = getScripts();
+                     console.log({ scripts });
+                  }}
+               >
+                  Teste
+               </ContextMenuItem>
+               <ContextMenuItem
+                  disabled={value === "[NULL]" || !nullable}
+                  onSelect={() => handleOnBlur(null)}
                   className="gap-2"
                >
-                  {value === "true" ? (
-                     <CircleSlash className="size-4 shrink-0" />
-                  ) : (
-                     <CircleCheck className="size-4 shrink-0" />
-                  )}
-                  Set {value === "true" ? "false" : "true"}
+                  <CircleDashed className="size-4 shrink-0" />
+                  Set null
                </ContextMenuItem>
-            ) : null}
-         </ContextMenuContent>
-         {/* {editable ? (
-         ) : null} */}
-      </ContextMenu>
+               {type === "boolean" ? (
+                  <ContextMenuItem
+                     disabled={value === null}
+                     onSelect={() => handleOnBlur(value === "true" ? "false" : "true")}
+                     className="gap-2"
+                  >
+                     {value === "true" ? (
+                        <CircleSlash className="size-4 shrink-0" />
+                     ) : (
+                        <CircleCheck className="size-4 shrink-0" />
+                     )}
+                     Set {value === "true" ? "false" : "true"}
+                  </ContextMenuItem>
+               ) : null}
+            </ContextMenuContent>
+         </ContextMenu>
+         {/* {focus && <CellSelection ref={inputRef} />} */}
+      </>
+   );
+}
+
+interface CellSelectionProps {
+   ref: RefObject<HTMLElement | null>;
+}
+function CellSelection({ ref }: CellSelectionProps) {
+   const container = document.querySelector("div[data-scroll-container]");
+   if (!container) return null;
+
+   const rect = {
+      top:
+         (ref.current?.getBoundingClientRect().top ?? 0) -
+         (container.getBoundingClientRect().top ?? 0) +
+         (container.scrollTop ?? 0) -
+         1,
+      left:
+         (ref.current?.getBoundingClientRect().left ?? 0) -
+         (container.getBoundingClientRect().left ?? 0) +
+         (container.scrollLeft ?? 0) -
+         1,
+      width: (ref.current?.getBoundingClientRect()?.width ?? 0) + 2,
+      height: (ref.current?.getBoundingClientRect()?.height ?? 0) + 2,
+   };
+
+   return (
+      <Portal container={container}>
+         <span style={rect} className="border-primary pointer-events-none absolute z-[12] block border shadow-xs">
+            {/* <span className="bg-primary absolute -top-1 -right-1 size-2 rounded-xs" /> */}
+         </span>
+      </Portal>
    );
 }
 

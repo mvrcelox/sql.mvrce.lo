@@ -1,7 +1,7 @@
 "use client";
 
-import { Input } from "@/app/components/ui/input";
-import { Switch } from "../components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { useToggle } from "react-use";
 
 export default function Inputs() {

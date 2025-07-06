@@ -1,13 +1,11 @@
 "use client";
 
-import { connectDatabase } from "@/models/databases";
+import { connectDatabase } from "@/controllers/database.controller";
 import { toast } from "sonner";
 import { create } from "zustand";
 
 interface Database {
-   id: number;
-   name: string;
-   description: string | null;
+   id: string;
    tables?: { table_name: string }[];
    views?: { table_name: string }[];
    indexes?: { indexname: string }[];
@@ -17,51 +15,52 @@ interface Database {
 
 interface DatabasesStore {
    connecteds: Database[];
-   find: (databaseId: number) => Database | null;
-   connect: (database: { id: number; name: string; description: string | null }) => unknown;
-   disconnect: (databaseId: number) => void;
+   find: (id: string) => Database | null;
+   connect: (id: string) => unknown;
+   disconnect: (id: string) => void;
    getCurrent: () => Database | null;
 }
 
 export const useDatabasesStore = create<DatabasesStore>((set, get) => ({
    connecteds: [],
-   find: (databaseId) => {
+   find: (id) => {
       const connecteds = get().connecteds;
-      const index = connecteds.findIndex((x) => x.id === databaseId);
+
+      const index = connecteds.findIndex((x) => x.id === id);
       if (index === -1) return null;
 
       return connecteds[index];
    },
-   connect: async (database) => {
-      const exists = get().connecteds.find((x) => x.id === database.id);
+   connect: async (uuid) => {
+      const exists = get().connecteds.find((x) => x.id === uuid);
       if (exists) return;
 
       set((state) => ({
          ...state,
-         connecteds: [...state.connecteds, { ...database, status: "connecting" }],
+         connecteds: [...state.connecteds, { id: uuid, status: "connecting" }],
       }));
-      const [res, error] = await connectDatabase(database.id);
+      const response = await connectDatabase(uuid);
 
-      if (error) {
+      if (!response.success) {
          set((state) => {
-            const find = state.connecteds?.find((x) => x.id === database.id);
-            if (!find) return state;
+            const index = state.connecteds?.findIndex((x) => x.id === uuid);
+            if (!index) return state;
 
-            find.status = "error";
+            state.connecteds[index].status = "error";
 
             return { ...state, connecteds: [...state.connecteds] };
          });
 
-         toast.error(error?.message);
+         toast.error(response.error?.message, { description: response.error.action });
          return;
       }
 
       set((state) => {
-         const index = state.connecteds?.findIndex((x) => x.id === database.id);
+         const index = state.connecteds?.findIndex((x) => x.id === uuid);
          if (index === -1) return state;
 
          const connecteds = state.connecteds;
-         connecteds[index] = { ...res, description: res?.description ?? "", status: "connected" };
+         connecteds[index] = { ...response.data, id: uuid, status: "connected" };
 
          return { ...state, connecteds };
       });
@@ -78,7 +77,7 @@ export const useDatabasesStore = create<DatabasesStore>((set, get) => ({
       const pathname = window.location.pathname;
       const splitted = pathname.split("/");
       if (splitted[1] === "database" && splitted[2] === "table") {
-         return get().find(Number(splitted[2]) || 0);
+         return get().find(splitted[2] || "");
       }
       return null;
    },

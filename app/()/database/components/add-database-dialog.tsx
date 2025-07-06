@@ -1,6 +1,6 @@
 "use client";
 
-import Button from "@/app/components/ui/button";
+import Button from "@/components/ui/button";
 import {
    Dialog,
    DialogBody,
@@ -10,12 +10,12 @@ import {
    DialogHeader,
    DialogTitle,
    DialogTrigger,
-} from "@/app/components/ui/dialog";
-import { Input } from "@/app/components/ui/input";
-import Label from "@/app/components/ui/label";
-import { Separator } from "@/app/components/ui/separator";
-import { createDatabase, testDatabase } from "@/models/databases";
-import DatabaseSchema, { CredentialsSchema, DatabaseInput, DatabaseOutput } from "@/validators/database";
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import Label from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import databaseSchema from "@/dtos/databases.dto";
+import credentialsSchema from "@/dtos/credentials";
 import { useMutation } from "@tanstack/react-query";
 import { ClipboardPaste, Loader2 } from "lucide-react";
 import { Controller, FieldErrors, FormProvider, useForm } from "react-hook-form";
@@ -23,20 +23,32 @@ import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
 import { useState } from "react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/app/components/ui/tooltip";
-import { Switch } from "@/app/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { z } from "zod";
+import { createDatabase, testDatabaseConnection } from "@/controllers/database.controller";
 
 type Props = React.PropsWithChildren & {
+   open?: boolean;
+   setOpen?: React.Dispatch<React.SetStateAction<boolean>>;
    onSuccess?: () => unknown;
+};
+
+type CreateDatabaseSchema = z.infer<typeof createDatabaseSchema>;
+const createDatabaseSchema = databaseSchema.omit({ id: true, owner_id: true });
+
+const defaultValues: Partial<CreateDatabaseSchema> = {
+   // schema: "public",
 };
 
 export default function AddDatabaseDialog({ children, onSuccess }: Props) {
    const { data: session } = useSession();
    const [open, setOpen] = useState<boolean>(false);
 
-   const form = useForm<DatabaseOutput>({
-      resolver: zodResolver(DatabaseSchema),
+   const form = useForm<CreateDatabaseSchema>({
+      defaultValues,
+      resolver: zodResolver(createDatabaseSchema),
    });
    const {
       control,
@@ -52,40 +64,41 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
 
    const { mutate: test, isPending: isTesting } = useMutation({
       mutationKey: ["test-database-connection"],
-      mutationFn: async (values: DatabaseInput) => {
+      mutationFn: async (values: CreateDatabaseSchema) => {
          clearErrors();
 
-         const safe = await DatabaseSchema.safeParseAsync(values);
-         if (!safe.success && safe.error) {
-            for (const issue of safe.error.issues) {
+         const validation = await createDatabaseSchema.safeParseAsync(values);
+         if (!validation.success && validation.error) {
+            for (const issue of validation.error.issues) {
                if (issue.path.length <= 0) continue;
                if (issue.path?.[0] == "name") continue;
-               trigger(issue.path.join(".") as keyof DatabaseOutput);
+               trigger(issue.path.join(".") as keyof CreateDatabaseSchema);
             }
          }
 
-         const [, error] = await testDatabase(values);
-         if (error) {
-            toast.error(error.message);
+         const response = await testDatabaseConnection(values);
+         if (!response.success) {
+            console.log(response.error);
+            toast.error(response.error.message, { description: response.error?.action });
             return;
          }
          toast.success("Sucessfully connected.");
       },
    });
 
-   async function submit(data: DatabaseOutput) {
-      const [, error] = await createDatabase(data);
-      if (error) {
-         toast.error(error.message);
+   async function onValid(data: CreateDatabaseSchema) {
+      const response = await createDatabase(data);
+      if (!response.success) {
+         toast.error(response.error.message, { description: response.error?.action });
          return;
       }
 
-      await onSuccess?.();
+      if (onSuccess) await onSuccess();
       setOpen(false);
       reset();
    }
 
-   function handleError(error: FieldErrors<DatabaseOutput>) {
+   async function onError(error: FieldErrors<CreateDatabaseSchema>) {
       if (!session?.user) {
          toast.warning("You need to sign in first!");
          return;
@@ -120,7 +133,7 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
       res["port"] = matched?.groups?.port?.replace(/[^0-9]/g, "") || "5432";
       res["ssl"] = clipboard?.includes("sslmode=require");
 
-      const safe = await CredentialsSchema.safeParseAsync(res);
+      const safe = await credentialsSchema.safeParseAsync(res);
       if (!safe.success) {
          const issue = safe.error.issues[0];
          toast.error(
@@ -147,7 +160,7 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
             </DialogHeader>
             <DialogBody>
                <FormProvider {...form}>
-                  <form className="flex flex-col gap-2 self-stretch" onSubmit={handleSubmit(submit, handleError)}>
+                  <form className="flex flex-col gap-2 self-stretch" onSubmit={handleSubmit(onValid, onError)}>
                      {/* <div className="flex items-center gap-1 rounded-md bg-gray-200 p-1">
                         <span
                            aria-selected={true}
@@ -163,80 +176,56 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
                         </span>
                      </div> */}
 
-                     <div className="grid grid-cols-1 gap-1">
-                        <Label required>Name</Label>
-                        <Input
-                           placeholder={"My favorite database"}
-                           {...register("name")}
-                           className={
-                              errors?.name
-                                 ? "!border-red-500 !outline-red-500 dark:!border-red-600 dark:!outline-red-600"
-                                 : undefined
-                           }
-                        />
-                     </div>
-
-                     <Separator className="-mx-4 my-4" />
-
                      {/* <div className="flex items-center justify-between">
                         <span className="text-sm font-semibold text-gray-600">Credentials</span>
                         <div className="flex items-center gap-2">
                         </div>
                      </div> */}
 
-                     <div className="col-span-full flex flex-1 items-center gap-2">
-                        <div className="flex items-center gap-2">
-                           <Controller
-                              name="ssl"
-                              control={control}
-                              render={({ field }) => (
-                                 <Switch
-                                    disabled={field.disabled}
-                                    onBlur={field.onBlur}
-                                    checked={field.value}
-                                    onCheckedChange={field.onChange}
-                                    name={field.name}
-                                    ref={field.ref}
-                                 />
-                              )}
-                           />
-                           <span className="text-sm">SSL</span>
-                        </div>
-                        <TooltipProvider delayDuration={0} disableHoverableContent>
-                           <Tooltip>
-                              <TooltipTrigger asChild>
-                                 <Button intent="outline" size="icon" className="ml-auto size-8" onClick={handlePaste}>
-                                    <span className="sr-only">Paste database url</span>
-                                    <ClipboardPaste className="size-4 shrink-0" />
-                                 </Button>
-                              </TooltipTrigger>
-                              <TooltipContent className="flex flex-col">
-                                 <span className="text-background">Paste database URL</span>
-                                 {/* <span className="text-background text-xs opacity-70">
-                                          The database has to been in your clipboard
-                                       </span> */}
-                              </TooltipContent>
-                           </Tooltip>
-                        </TooltipProvider>
-                     </div>
-
                      <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-4">
                         <div className="grid grid-cols-1 gap-1 sm:col-span-3">
                            <Label required>Host</Label>
-                           <Input
-                              {...register("host")}
-                              className={
-                                 errors?.host
-                                    ? "!border-red-500 !outline-red-500 dark:!border-red-600 dark:!outline-red-600"
-                                    : undefined
-                              }
-                           />
+                           <div className="relative">
+                              <Input
+                                 intent="opaque2"
+                                 aria-invalid={!!errors?.host}
+                                 {...register("host")}
+                                 className={
+                                    errors?.host
+                                       ? "!border-red-500 !outline-red-500 dark:!border-red-600 dark:!outline-red-600"
+                                       : undefined
+                                 }
+                              />
+                              <TooltipProvider delayDuration={0} disableHoverableContent>
+                                 <Tooltip>
+                                    <TooltipTrigger asChild>
+                                       <Button
+                                          intent="outline"
+                                          size="icon"
+                                          className="absolute top-1/2 right-1 ml-auto size-8 -translate-y-1/2"
+                                          onClick={handlePaste}
+                                       >
+                                          <span className="sr-only">Paste database url</span>
+                                          <ClipboardPaste className="size-4 shrink-0" />
+                                       </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="flex flex-col">
+                                       <span className="text-background">Paste database URL</span>
+                                       {/* <span className="text-background text-xs opacity-70">
+                                          The database has to been in your clipboard
+                                       </span> */}
+                                    </TooltipContent>
+                                 </Tooltip>
+                              </TooltipProvider>
+                           </div>
                         </div>
 
                         <div className="grid grid-cols-1 gap-1">
                            <Label className="font-di text-sm text-gray-700">Port</Label>
                            <Input
+                              intent="opaque2"
                               placeholder="5432"
+                              aria-invalid={!!errors?.port}
                               {...register("port")}
                               className={
                                  errors?.port
@@ -250,6 +239,8 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
                      <div className="grid grid-cols-1 gap-1">
                         <Label required>Database</Label>
                         <Input
+                           intent="opaque2"
+                           aria-invalid={!!errors?.database}
                            {...register("database")}
                            className={
                               errors?.database
@@ -263,6 +254,8 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
                         <div className="grid grid-cols-1 gap-1">
                            <Label required>Username</Label>
                            <Input
+                              intent="opaque2"
+                              aria-invalid={!!errors?.username}
                               {...register("username")}
                               className={
                                  errors?.username
@@ -275,6 +268,9 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
                         <div className="grid grid-cols-1 gap-1">
                            <Label required>Password</Label>
                            <Input
+                              intent="opaque2"
+                              type="password"
+                              aria-invalid={!!errors?.password}
                               {...register("password")}
                               className={
                                  errors?.password
@@ -283,6 +279,61 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
                               }
                            />
                         </div>
+                     </div>
+
+                     <Separator className="-mx-4 my-4" />
+
+                     <div className="flex flex-row self-stretch">
+                        <div className="grid grow grid-cols-1 gap-1 sm:col-span-3">
+                           <Label required>Schema</Label>
+                           {/* <Input
+                              intent="opaque2"
+                              placeholder="public"
+                              aria-invalid={!!errors?.schema}
+                              {...register("schema")}
+                              className={
+                                 errors?.schema
+                                    ? "!border-red-500 !outline-red-500 dark:!border-red-600 dark:!outline-red-600"
+                                    : undefined
+                              }
+                           /> */}
+                        </div>
+                        <div className="mt-6 flex items-center gap-3 px-3">
+                           <Label className="text-sm" htmlFor="ssl">
+                              SSL
+                           </Label>
+
+                           <Controller
+                              name="ssl"
+                              control={control}
+                              render={({ field }) => (
+                                 <Switch
+                                    disabled={field.disabled}
+                                    id="ssl"
+                                    onBlur={field.onBlur}
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                    name={field.name}
+                                    ref={field.ref}
+                                 />
+                              )}
+                           />
+                        </div>
+                     </div>
+
+                     <div className="grid grid-cols-1 gap-1">
+                        <Label required>Name</Label>
+                        <Input
+                           intent="opaque2"
+                           aria-invalid={!!errors?.name}
+                           placeholder={"My favorite database"}
+                           {...register("name")}
+                           className={
+                              errors?.name
+                                 ? "!border-red-500 !outline-red-500 dark:!border-red-600 dark:!outline-red-600"
+                                 : undefined
+                           }
+                        />
                      </div>
 
                      <div className="-m-4 mt-2 border-t">

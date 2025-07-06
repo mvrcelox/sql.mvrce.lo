@@ -1,12 +1,13 @@
 "use server";
 
-import { CredentialsSchema, DatabaseSchema } from "@/validators/database";
+import databaseSchema from "@/dtos/databases.dto";
+import credentialsSchema from "@/dtos/credentials";
 import { authedProcedure } from "./auth";
 import db from "@/db";
 import { databasesTable } from "@/db/schema";
-import { BadRequestError, InternalServerError, NotFoundError } from "@/infra/errors";
+import { BadRequestException, InternalServerException, NotFoundException } from "@/infra/errors";
 import { and, asc, desc, eq } from "drizzle-orm";
-import { GetTableParams } from "@/validators/_default";
+import { GetTableParams } from "@/dtos/_default";
 import { createServerAction } from "zsa";
 import { z } from "zod";
 import tryCatch from "@/helpers/try-catch";
@@ -25,11 +26,11 @@ export const getDatabases = authedProcedure.input(GetTableParams).handler(async 
       return response;
    } catch (error) {
       console.error(error);
-      throw new InternalServerError({ cause: error });
+      throw new InternalServerException({ cause: error });
    }
 });
 
-export const findDatabase = authedProcedure.input(z.number().min(1, "Invalid ID")).handler(async ({ ctx, input }) => {
+export const findDatabase = authedProcedure.input(z.string().min(1, "Invalid ID")).handler(async ({ ctx, input }) => {
    try {
       const databases = await db
          .select()
@@ -37,17 +38,17 @@ export const findDatabase = authedProcedure.input(z.number().min(1, "Invalid ID"
          .where(and(eq(databasesTable.id, input), eq(databasesTable.owner_id, ctx.user?.id ?? 0)));
 
       const database = databases?.[0];
-      if (!database) throw new NotFoundError("Database doesn't exists.");
+      if (!database) throw new NotFoundException("Database doesn't exists.");
 
       database.password = AES.decrypt(database.password, process.env.CRYPTO_KEY ?? "").toString(enc.Utf8);
       return database;
    } catch (error) {
-      throw new InternalServerError({ cause: error });
+      throw new InternalServerException({ cause: error });
    }
 });
 
-export const createDatabase = authedProcedure.input(DatabaseSchema).handler(async ({ ctx, input }) => {
-   if (input.id) throw new BadRequestError("Bad request! You can't create a database with a predefined ID.");
+export const createDatabase = authedProcedure.input(databaseSchema).handler(async ({ ctx, input }) => {
+   if (input.id) throw new BadRequestException("Bad request! You can't create a database with a predefined ID.");
    const database: typeof databasesTable.$inferInsert = { ...input, owner_id: ctx.user?.id ?? 0 };
 
    if (database.password) database.password = AES.encrypt(database.password, process.env.CRYPTO_KEY || "").toString();
@@ -56,12 +57,12 @@ export const createDatabase = authedProcedure.input(DatabaseSchema).handler(asyn
       await db.insert(databasesTable).values(database);
    } catch (error) {
       console.error(error);
-      throw new InternalServerError({ cause: error });
+      throw new InternalServerException({ cause: error });
    }
 });
 
-export const updateDatabase = authedProcedure.input(DatabaseSchema.partial()).handler(async ({ ctx, input }) => {
-   if (!input.id) throw new BadRequestError("Bad request! ID is missing.");
+export const updateDatabase = authedProcedure.input(databaseSchema.partial()).handler(async ({ ctx, input }) => {
+   if (!input.id) throw new BadRequestException("Bad request! ID is missing.");
 
    // Hold all the rows fetched with the query params passed.
    let rows = [];
@@ -71,10 +72,10 @@ export const updateDatabase = authedProcedure.input(DatabaseSchema.partial()).ha
          .from(databasesTable)
          .where(and(eq(databasesTable.id, input.id), eq(databasesTable.owner_id, ctx.user?.id ?? 0)));
    } catch (error) {
-      throw new InternalServerError({ cause: error });
+      throw new InternalServerException({ cause: error });
    }
 
-   if (!rows.length) throw new NotFoundError("Database doesn't exists.");
+   if (!rows.length) throw new NotFoundException("Database doesn't exists.");
 
    const database = { ...input, owner_id: ctx.user?.id };
    try {
@@ -83,24 +84,26 @@ export const updateDatabase = authedProcedure.input(DatabaseSchema.partial()).ha
          .set(database)
          .where(and(eq(databasesTable.id, input.id), eq(databasesTable.owner_id, ctx.user?.id ?? 0)));
    } catch (error) {
-      throw new InternalServerError({ cause: error });
+      throw new InternalServerException({ cause: error });
    }
 });
 
-export const deleteDatabase = authedProcedure.input(z.number().min(1, "Invalid ID")).handler(async ({ ctx, input }) => {
-   const { data, error } = await tryCatch(
-      db.delete(databasesTable).where(and(eq(databasesTable.id, input), eq(databasesTable.owner_id, ctx.user.id))),
-   );
+export const deleteDatabase = authedProcedure
+   .input(z.string().min(1, "Invalid ID").uuid())
+   .handler(async ({ ctx, input }) => {
+      const { data, error } = await tryCatch(
+         db.delete(databasesTable).where(and(eq(databasesTable.id, input), eq(databasesTable.owner_id, ctx.user.id))),
+      );
 
-   if (error) throw new InternalServerError({ cause: error });
+      if (error) throw new InternalServerException({ cause: error });
 
-   if (!data.rowCount || data.rowCount <= 0) throw new NotFoundError("Database doesn`t exists.");
-});
+      if (!data.rowCount || data.rowCount <= 0) throw new NotFoundException("Database doesn`t exists.");
+   });
 
 export const queryDatabase = authedProcedure
    .input(
       z.object({
-         databaseId: z.number().min(1, "Invalid ID"),
+         databaseId: z.string().min(1, "Invalid ID"),
          sql: z.string().min(1, "Invalid SQL"),
          params: z.array(z.string()).optional(),
       }),
@@ -115,21 +118,21 @@ export const queryDatabase = authedProcedure
          return { fields: Array.from(result.fields), rows: Array.from(result.rows) };
       } catch (error) {
          console.error(error);
-         throw new InternalServerError({ cause: error });
+         throw new InternalServerException({ cause: error });
       }
    });
 
-export const connectDatabase = authedProcedure.input(z.number().min(1, "Invalid ID")).handler(async ({ input }) => {
+export const connectDatabase = authedProcedure.input(z.string().min(1, "Invalid ID")).handler(async ({ input }) => {
    const [found, error] = await findDatabase(input);
 
-   if (error) throw new InternalServerError({ cause: error });
+   if (error) throw new InternalServerException({ cause: error });
    const client = createPSQLDatabase(found);
 
    try {
       await client?.connect();
    } catch (error) {
       console.error(error);
-      throw new InternalServerError({ cause: error });
+      throw new InternalServerException({ cause: error });
    }
 
    try {
@@ -155,7 +158,7 @@ export const connectDatabase = authedProcedure.input(z.number().min(1, "Invalid 
       };
    } catch (error) {
       console.error(error);
-      throw new InternalServerError({ cause: error });
+      throw new InternalServerException({ cause: error });
    } finally {
       await client?.end();
    }
@@ -171,9 +174,9 @@ interface RowReturn {
    Comment: string | null;
 }
 
-export const getConnection = authedProcedure.input(z.number().min(1, "Invalid ID")).handler(async ({ input }) => {
+export const getConnection = authedProcedure.input(z.string().min(1, "Invalid ID")).handler(async ({ input }) => {
    const [found, error] = await findDatabase(input);
-   if (error) throw new InternalServerError({ cause: error });
+   if (error) throw new InternalServerException({ cause: error });
 
    const client = createPSQLDatabase(found);
 
@@ -182,15 +185,15 @@ export const getConnection = authedProcedure.input(z.number().min(1, "Invalid ID
       return client;
    } catch (error) {
       console.error(error);
-      throw new InternalServerError({ cause: error });
+      throw new InternalServerException({ cause: error });
    }
 });
 
 export const getDatabaseProperties = authedProcedure
-   .input(z.object({ databaseId: z.number(), tableName: z.string() }))
+   .input(z.object({ databaseId: z.string(), tableName: z.string() }))
    .onInputParseError(async (error) => {
       console.error(error);
-      throw new BadRequestError("Invalid database!");
+      throw new BadRequestException("Invalid database!");
    })
    .handler(async ({ input }) => {
       const { databaseId, tableName } = input;
@@ -228,7 +231,7 @@ export const getDatabaseProperties = authedProcedure
          return data.rows;
       } catch (error) {
          if ((error as { code?: string })?.code === "42P01") {
-            throw new NotFoundError();
+            throw new NotFoundException();
          }
       }
    });
@@ -236,10 +239,10 @@ export const getDatabaseProperties = authedProcedure
 // Anonymous actions
 
 export const testDatabase = createServerAction()
-   .input(CredentialsSchema)
+   .input(credentialsSchema)
    .onInputParseError(async (error) => {
       console.error(error);
-      throw new BadRequestError("Invalid database!");
+      throw new BadRequestException("Invalid database!");
    })
    .handler(async ({ input }) => {
       // if (connection === 1) {
@@ -251,7 +254,7 @@ export const testDatabase = createServerAction()
       } catch (error) {
          console.error(error);
 
-         throw new InternalServerError({ cause: error });
+         throw new InternalServerException({ cause: error });
       } finally {
          await client?.end();
       }

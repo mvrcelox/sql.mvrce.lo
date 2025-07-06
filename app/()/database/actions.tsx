@@ -6,7 +6,7 @@ import { authedProcedure } from "@/models/auth";
 import db from "@/db";
 import { databasesTable } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
-import { InternalServerError, NotFoundError } from "@/infra/errors";
+import { InternalServerException, NotFoundException } from "@/infra/errors";
 import tryCatch from "@/helpers/try-catch";
 import { createPSQLDatabase } from "@/lib/database-factory";
 
@@ -19,8 +19,8 @@ export const connectToDatabase = authedProcedure
             .from(databasesTable)
             .where(and(eq(databasesTable.id, input), eq(databasesTable.owner_id, ctx.user.id))),
       );
-      if (error) throw new InternalServerError({ cause: error });
-      if (!databases?.length) throw new NotFoundError("Database doesn't exist.");
+      if (error) throw new InternalServerException({ cause: error });
+      if (!databases?.length) throw new NotFoundException("Database doesn't exist.");
 
       const database = databases[0];
 
@@ -32,7 +32,7 @@ export const connectToDatabase = authedProcedure
       } catch (error) {
          console.error(error);
 
-         throw new InternalServerError({ cause: error });
+         throw new InternalServerException({ cause: error });
       } finally {
          await client?.end();
       }

@@ -3,9 +3,10 @@ import { Geist, Plus_Jakarta_Sans } from "next/font/google";
 
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
-import { Toaster } from "@/app/components/ui/sonner";
+import { Toaster } from "@/components/ui/sonner";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
-import { ReactQueryProvider } from "./components/react-query-provider";
+import { ReactQueryProvider } from "@/components/react-query-provider";
+import Provider from "./provider";
 
 const geistSans = Geist({
    variable: "--font-geist-sans",
@@ -41,14 +42,16 @@ export default function RootLayout({
    return (
       <html lang="en" suppressHydrationWarning>
          <body
-            className={`bg-background flex max-h-lvh min-h-svh flex-col overflow-hidden ${geistSans.variable} ${plusJakartaSans.variable}`}
+            className={`bg-background flex max-h-lvh min-h-svh flex-col overflow-x-hidden ${geistSans.variable} ${plusJakartaSans.variable}`}
          >
-            <ThemeProvider attribute="class" enableColorScheme enableSystem disableTransitionOnChange>
-               <ReactQueryProvider>
-                  <NuqsAdapter>{children}</NuqsAdapter>
-                  <Toaster />
-               </ReactQueryProvider>
-            </ThemeProvider>
+            <Provider>
+               <ThemeProvider attribute="class" enableColorScheme enableSystem disableTransitionOnChange>
+                  <ReactQueryProvider>
+                     <NuqsAdapter>{children}</NuqsAdapter>
+                     <Toaster />
+                  </ReactQueryProvider>
+               </ThemeProvider>
+            </Provider>
          </body>
       </html>
    );

@@ -11,3 +11,10 @@ export interface Session {
 export interface JWT {
    sub: number;
 }
+
+declare global {
+   export type StrictOmit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
+   export type ControllerResponse<T> =
+      | { success: true; data: T; error?: never }
+      | { success: false; data?: never; error: Record<string, unknown> };
+}

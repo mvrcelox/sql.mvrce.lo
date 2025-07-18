@@ -1,19 +1,16 @@
-import Client from "./client";
-import { loadSearchParams } from "./nuqs";
-import type { SearchParams } from "nuqs/server";
+"use client";
 
-interface PageProps {
-   searchParams: Promise<SearchParams>;
-}
+import { Input } from "@/components/ui/input";
+import { useState } from "react";
+import { AES } from "crypto-js";
 
-export default async function Page({ searchParams }: PageProps) {
-   const awaited = await loadSearchParams(searchParams);
+export default function Page() {
+   const [value, setValue] = useState("");
+   const encrypt = AES.encrypt(value, "secret").toString();
    return (
-      <div className="grid grow place-items-center self-stretch">
-         <div className="flex flex-col gap-2">
-            Hello {awaited.input}
-            <Client />
-         </div>
-      </div>
+      <>
+         <Input value={value} onChange={(e) => setValue(e.target.value)} />
+         {encrypt.toString()}
+      </>
    );
 }

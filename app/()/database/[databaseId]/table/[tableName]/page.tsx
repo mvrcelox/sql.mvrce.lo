@@ -1,10 +1,9 @@
 import { notFound } from "next/navigation";
 
-// import { DataTableToolbar } from "@/app/components/data-table-toolbar";
-import { TableWrapper } from "@/app/components/ui/table";
-import { findDatabase } from "@/models/databases";
+// import { DataTableToolbar } from "@/components/data-table-toolbar";
+import { findDatabase } from "@/controllers/database.controller";
 import { createPSQLDatabase } from "@/lib/database-factory";
-import { DataTable } from "@/app/components/data-table";
+import { DataTable } from "@/components/data-table";
 import { Metadata } from "next";
 import { loadSearchParams } from "./search-params";
 
@@ -32,14 +31,12 @@ export const maxDuration = 10;
 const getData = async (params: Params, searchParams: SearchParams) => {
    "use server";
 
-   if (isNaN(Number(params?.databaseId))) throw new Error("Invalid database");
+   if (!params?.databaseId) throw new Error("Invalid database");
 
-   const databaseId = parseInt(params?.databaseId);
-   const [found, err] = await findDatabase(databaseId);
-   if (err) throw err;
-   if (!found) notFound();
+   const response = await findDatabase(params.databaseId);
+   if (!response.success) throw response.error;
 
-   const client = createPSQLDatabase(found);
+   const client = createPSQLDatabase(response.data);
 
    try {
       await client?.connect();
@@ -89,9 +86,7 @@ export default async function Page({
 
    return (
       <main className="flex flex-initial grow flex-col self-stretch overflow-hidden bg-gray-100">
-         <TableWrapper>
-            <DataTable count={count} fields={fields} rows={rows} />
-         </TableWrapper>
+         <DataTable count={count} fields={fields} rows={rows} />
       </main>
    );
 }

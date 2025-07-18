@@ -1,7 +1,8 @@
 "use client";
 
 import { motion } from "motion/react";
-import BadgeLogo from "../components/badge-logo";
+import BadgeLogo from "@/components/badge-logo";
+import { H1 } from "@/components/ui/texts";
 
 export default function UnderConstruction() {
    return (
@@ -11,9 +12,7 @@ export default function UnderConstruction() {
       >
          <BadgeLogo />
          <section className="flex flex-col">
-            <h1 className="text-foreground mb-2 text-center text-2xl font-semibold md:mb-4 md:text-3xl">
-               We are sorry!
-            </h1>
+            <H1>We are sorry!</H1>
             <p className="text-center text-sm text-gray-700 md:text-base">This page is currently under construction.</p>
             <p className="text-center text-sm text-gray-700 md:text-base">Please check back later.</p>
          </section>

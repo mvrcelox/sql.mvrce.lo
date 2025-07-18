@@ -1,8 +1,13 @@
 import "server-only";
 
 import config from "@/config/site";
-import { BadRequestError, InternalServerError, MethodNotAllowedError, NotFoundError } from "@/infra/errors";
-import { CredentialsInput, CredentialsSchema } from "@/validators/database";
+import {
+   BadRequestException,
+   InternalServerException,
+   MethodNotAllowedException,
+   NotFoundException,
+} from "@/infra/errors";
+import credentialsSchema, { ICredentials } from "@/dtos/credentials";
 import { Client, FieldDef } from "pg";
 
 interface Field {
@@ -32,8 +37,8 @@ interface IDatabase<TStatus extends Status> {
    end: () => Promise<IDatabase<"disconnected">>;
 }
 
-export function createPSQLDatabase(input: CredentialsInput): IDatabase<"disconnected"> {
-   const safe = CredentialsSchema.safeParse(input);
+export function createPSQLDatabase(input: ICredentials): IDatabase<"disconnected"> {
+   const safe = credentialsSchema.safeParse(input);
    if (!safe.success) throw new Error(safe.error.message);
    return new PSQLDatabase(input);
 }
@@ -42,11 +47,11 @@ class PSQLDatabase<TStatus extends Status = "disconnected"> implements IDatabase
    public status: TStatus = "disconnected" as TStatus;
    private client: Client;
 
-   constructor(credentials: CredentialsInput) {
+   constructor(credentials: ICredentials) {
       const { username } = credentials;
 
-      const safe = CredentialsSchema.safeParse(credentials);
-      if (!safe.success) throw new BadRequestError("Invalid credentials: " + safe.error.message);
+      const safe = credentialsSchema.safeParse(credentials);
+      if (!safe.success) throw new BadRequestException("Invalid credentials: " + safe.error.message);
 
       this.client = new Client({
          ...safe.data,
@@ -57,17 +62,23 @@ class PSQLDatabase<TStatus extends Status = "disconnected"> implements IDatabase
    }
 
    public async connect(): Promise<IDatabase<"connected">> {
-      if (!this.client) throw new NotFoundError(`Client doesn't exist. Try re-creating the database`);
+      if (!this.client) throw new NotFoundException(`Client doesn't exist. Try re-creating the database`);
 
       if (!(this.client instanceof Client)) throw new Error("Client is not an instance of pg.Client");
 
-      await this.client.connect();
-      this.status = "connected" as TStatus;
-      return this as unknown as IDatabase<"connected">;
+      try {
+         await this.client.connect();
+         this.status = "connected" as TStatus;
+         return this as unknown as IDatabase<"connected">;
+      } catch (error) {
+         console.error("Error connecting to database:", error);
+         this.status = "disconnected" as TStatus;
+         throw new InternalServerException({ cause: error });
+      }
    }
 
    public async query<T>(sql: string, params?: unknown[]): Promise<{ count: number; rows: T[]; fields: FieldDef[] }> {
-      if (this.status !== "connected") throw new MethodNotAllowedError("You need to connect first!");
+      if (this.status !== "connected") throw new MethodNotAllowedException("You need to connect first!");
 
       const response = await this.client.query(sql, params);
       return { count: response?.rowCount ?? 0, rows: response.rows as T[], fields: response.fields };
@@ -119,12 +130,10 @@ class PSQLDatabase<TStatus extends Status = "disconnected"> implements IDatabase
             ),
          ]);
 
-         console.log({ count: data?.rowCount || 0, rows: data.rows, fields: fields.rows });
-
          return { count: data?.rowCount || 0, rows: data?.rows ?? [], fields: fields.rows };
       } catch (error) {
          console.error(error);
-         throw new InternalServerError({ cause: error });
+         throw new InternalServerException({ cause: error });
       }
    }
 

@@ -1,6 +1,6 @@
 const config = {
-   name: "sql",
-   fullName: "sql.mvrce.lo",
+   name: "sql/lzzzo",
+   fullName: "sql.lzzzo.com",
 } as const;
 
 export { config as default, config };

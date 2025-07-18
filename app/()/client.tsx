@@ -1,4 +1,4 @@
 "use client";
 import dynamic from "next/dynamic";
 
-export const Sidebar = dynamic(() => import("@/app/components/sidebar"), { ssr: false });
+export const Sidebar = dynamic(() => import("@/components/sidebar"), { ssr: false });

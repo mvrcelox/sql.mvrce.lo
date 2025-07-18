@@ -1,16 +1,22 @@
 import "server-only";
 
 import { createServerActionProcedure } from "zsa";
-import { UnauthorizedError } from "@/infra/errors";
+import { UnauthorizedException } from "@/infra/errors";
 import { auth } from "@/auth";
 import { Session } from "@/global";
 
 export const cookiesAuthKey = "AUTH";
 
+export async function authenticate(): Promise<Session | null> {
+   const session: Session = (await auth()) as Session;
+   if (!session?.user) return null;
+   return session as { user: NonNullable<(typeof session)["user"]> };
+}
+
 export const authedProcedure = createServerActionProcedure()
    .handler(async () => {
       const session: Session = (await auth()) as Session;
-      if (!session?.user) throw new UnauthorizedError();
+      if (!session?.user) throw new UnauthorizedException();
       return session as { user: NonNullable<(typeof session)["user"]> };
    })
    .createServerAction();

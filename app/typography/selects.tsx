@@ -1,7 +1,7 @@
 "use client";
 
-import { Select, SelectContent, SelectTrigger, SelectValue } from "@/app/components/ui/select";
-import { Switch } from "../components/ui/switch";
+import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useToggle } from "react-use";
 
 export default function Selects() {

@@ -1,5 +1,5 @@
-import Button from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
+import Button from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { auth } from "@/auth";
 
 export default async function Page() {

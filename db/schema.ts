@@ -10,6 +10,7 @@ import {
    text,
    boolean,
    AnyPgColumn,
+   uuid,
 } from "drizzle-orm/pg-core";
 
 export const rolesTable = pgTable("roles", {
@@ -62,10 +63,40 @@ export const userEmailsTable = pgTable(
    (table) => [uniqueIndex("emailUniqueIndex").on(lower(table.email))],
 );
 
+// table for share database between users
+export const userDatabasesTable = pgTable(
+   "user_databases",
+   {
+      id: serial().primaryKey(),
+      created_at: timestamp({ withTimezone: true }).notNull().defaultNow(),
+      updated_at: timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
+      permissions: text()
+         .array()
+         .notNull()
+         .default(sql`'{}'::text[]`),
+      user_id: integer()
+         .notNull()
+         .references(() => usersTable.id, {
+            onUpdate: "cascade",
+            onDelete: "cascade",
+         }),
+      database_id: uuid()
+         .notNull()
+         .references(() => databasesTable.id, {
+            onUpdate: "cascade",
+            onDelete: "cascade",
+         }),
+   },
+   (table) => [uniqueIndex("userDatabaseUniqueIndex").on(table.user_id, table.database_id)],
+);
+
+export type DatabasesTable = typeof databasesTable;
 export const databasesTable = pgTable(
    "databases",
    {
-      id: serial().primaryKey(),
+      id: uuid()
+         .primaryKey()
+         .default(sql`gen_random_uuid()`),
       created_at: timestamp().notNull().defaultNow(),
       updated_at: timestamp().$onUpdate(() => new Date()),
       name: varchar({ length: 255 }).notNull(),
@@ -95,7 +126,7 @@ export const scripsTable = pgTable("scripts", {
    updated_at: timestamp().$onUpdate(() => new Date()),
    name: varchar({ length: 255 }).notNull(),
    script: text().notNull().default(""),
-   database_id: integer()
+   database_id: uuid()
       .notNull()
       .references(() => databasesTable.id, {
          onUpdate: "cascade",

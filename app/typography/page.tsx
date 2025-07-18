@@ -1,4 +1,4 @@
-import { Separator } from "../components/ui/separator";
+import { Separator } from "@/components/ui/separator";
 import Inputs from "./inputs";
 import Selects from "./selects";
 

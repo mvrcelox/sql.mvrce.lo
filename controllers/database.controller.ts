@@ -119,7 +119,7 @@ export async function createDatabase(data: StrictOmit<DatabaseSchema, "id" | "ow
          }),
       );
 
-   return success(response.data, 201);
+   return success(JSON.parse(JSON.stringify(response.data)), 201);
 }
 
 export async function updateDatabase(id: string, data: StrictOmit<DatabaseSchema, "id" | "owner_id">) {

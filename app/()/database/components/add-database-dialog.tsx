@@ -190,6 +190,12 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
                                  intent="opaque2"
                                  aria-invalid={!!errors?.host}
                                  {...register("host")}
+                                 onKeyDown={(e) => {
+                                    if (e.ctrlKey && e.key.toLowerCase() === "v" && !e.altKey) {
+                                       e.preventDefault();
+                                       handlePaste();
+                                    }
+                                 }}
                                  className={
                                     errors?.host
                                        ? "!border-red-500 !outline-red-500 dark:!border-red-600 dark:!outline-red-600"

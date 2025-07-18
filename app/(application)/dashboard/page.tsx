@@ -1,4 +1,3 @@
-import { Card, CardHeader, CardTitle } from "@/components/card";
 import { buttonVariants } from "@/components/ui/button";
 import { H1 } from "@/components/ui/texts";
 import { Construction } from "lucide-react";

@@ -27,9 +27,9 @@ export class Exception extends Error implements IException {
 
 // > 400
 export class BadRequestException extends Exception {
-   public name = "BadRequest";
-   public status = 400;
-   public action = "Check the method and try again";
+   public readonly name = "BadRequest";
+   public readonly status = 400;
+   public readonly action = "Check the method and try again";
 
    constructor(message?: string, options?: ErrorOptions) {
       super(message ?? "Bad request.", options);

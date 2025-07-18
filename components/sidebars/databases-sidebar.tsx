@@ -29,13 +29,15 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { getDatabases, GetDatabasesReturn } from "@/models/databases";
 import { toast } from "sonner";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import Expand from "@/components/ui/expand";
 import { cn } from "@/lib/utils";
-import { useSessionStorage } from "@uidotdev/usehooks";
-import { useParams } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 import { useDatabasesStore } from "@/stores/databases";
+import { isFocusedOnElement } from "@/lib/is-focused-on-element";
+import { useEvent } from "@/hooks/use-event";
+import { useStorage } from "@/hooks/use-storage";
 
 export default function DatabasesSidebar() {
    const [search, setSearch] = useState<null | string>(null);
@@ -44,7 +46,6 @@ export default function DatabasesSidebar() {
    const addButton = useRef<HTMLButtonElement>(null);
 
    const params = useParams<{ id: string; table: string }>();
-
    const {
       data: databases,
       isLoading,
@@ -68,7 +69,7 @@ export default function DatabasesSidebar() {
                            intent: "none",
                            size: "xs",
                            className:
-                              "ml-auto border border-neutral-600 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100 dark:border-neutral-400 dark:bg-neutral-100 dark:text-neutral-700 dark:hover:bg-neutral-200 dark:hover:text-neutral-900",
+                              "ml-auto border border-gray-600 bg-gray-900 text-gray-300 hover:bg-gray-800 hover:text-gray-100 dark:border-gray-400 dark:bg-gray-100 dark:text-gray-700 dark:hover:bg-gray-200 dark:hover:text-gray-900",
                         })}
                      >
                         Sign in
@@ -96,7 +97,26 @@ export default function DatabasesSidebar() {
       connect(id);
    }, [params, connect, databases]);
 
-   const [hide] = useSessionStorage<boolean>("sub-sidebar", false);
+   const [hide, setHide] = useStorage<boolean>("sub-sidebar", false);
+
+   useEvent(
+      "keypress",
+      (e: Event) => {
+         if (!(e instanceof KeyboardEvent)) return;
+         if (e.key === "s" && !e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
+            if (isFocusedOnElement()) return;
+            e.preventDefault();
+            setHide((prev) => !prev);
+
+            window.addEventListener("storage", (e) => {
+               console.log({ key: e.key, value: e.newValue, oldValue: e.oldValue });
+            });
+         }
+      },
+      [setHide],
+   );
+
+   if (typeof window === "undefined") return null;
 
    return (
       <AnimatePresence>
@@ -106,9 +126,9 @@ export default function DatabasesSidebar() {
                animate={{ marginLeft: 0 }}
                exit={{ marginLeft: "-18rem" }}
                transition={{
-                  type: "tween",
-                  ease: "circInOut",
-                  duration: 0.15,
+                  type: "spring",
+                  stiffness: 500,
+                  damping: 40,
                }}
                className="isolate flex w-full max-w-72 shrink-0 grow flex-col self-stretch overflow-hidden border-r bg-gray-50"
             >
@@ -189,20 +209,21 @@ export default function DatabasesSidebar() {
 function Item({ database, state }: { database: GetDatabasesReturn[number]; state: string }) {
    const { find, connect, disconnect } = useDatabasesStore();
    const found = find(database.id);
+   const pathname = usePathname();
 
    return (
       <Expand.Root defaultOpen={false} open={state !== "connected" ? false : undefined} key={database.id}>
          <li
             role="listitem"
             data-state={state}
-            className="group data-sta flex flex-col rounded text-sm transition-colors hover:bg-gray-100 has-[button[aria-pressed='true']]:bg-gray-200 has-[button[aria-pressed='true']]:[--display:flex]"
+            className="group data-sta flex flex-col rounded text-sm transition-colors hover:bg-gray-100 has-[button[aria-pressed='true']]:bg-gray-100 has-[button[aria-pressed='true']]:[--display:flex]"
          >
             <div className="has-[button[aria-pressed='true']]:peer/title flex h-8 items-center justify-start gap-1 px-1">
                <Expand.Trigger
                   disabled={state === "connecting"}
                   intent="ghost"
                   size="none"
-                  className="group/toggle peer/toggle size-6 rounded-sm bg-transparent hover:bg-gray-300"
+                  className="group/toggle peer/toggle size-6 rounded-sm bg-transparent"
                   onPressedChange={(pressed) => {
                      if (!pressed || found || state === "connecting" || state === "connected") return;
                      connect(database.id);
@@ -228,7 +249,7 @@ function Item({ database, state }: { database: GetDatabasesReturn[number]; state
                      <Button
                         intent="ghost"
                         size="none"
-                        className="aria-expanded:text-foreground ml-auto size-6 rounded-sm text-gray-500 hover:bg-gray-300 hover:text-gray-700 aria-expanded:bg-gray-200"
+                        className="aria-expanded:text-foreground ml-auto size-6 rounded-sm text-gray-500 hover:text-gray-700 aria-expanded:bg-gray-200"
                      >
                         <MoreVertical className="size-4 shrink-0 duration-150" />
                      </Button>
@@ -292,48 +313,58 @@ function Item({ database, state }: { database: GetDatabasesReturn[number]; state
             <Expand.Content className="p-1 pl-4">
                {/* Tables */}
                <Expand.Root defaultOpen={false}>
-                  <div className="flex h-8 items-center gap-1 rounded-sm px-1 duration-150 hover:bg-gray-300 has-[button[aria-pressed='true']]:bg-gray-300">
+                  <div
+                     aria-selected={pathname.startsWith(`/database/${database.id}/table`)}
+                     className="group aria-selected:!bg-primary/15 flex h-8 items-center gap-1 rounded-sm px-1 duration-150 hover:bg-gray-200 has-[button[aria-pressed='true']]:bg-gray-200"
+                  >
                      <Expand.Trigger
                         intent="ghost"
                         size="none"
-                        className="group/toggle size-6 rounded-xs bg-transparent hover:bg-gray-300"
+                        className="group/toggle group-aria-selected:hover:bg-primary/15 size-6 rounded-sm bg-transparent"
                      >
-                        {<ChevronRight className="size-4 shrink-0 duration-150 group-aria-pressed/toggle:rotate-90" />}
+                        <ChevronRight className="group-aria-selected:text-primary-hover size-4 shrink-0 duration-150 group-aria-pressed/toggle:rotate-90" />
                      </Expand.Trigger>
                      <span className="text-gray-800">Tables</span>
+                     {/* <span className="mx-1 block h-1 w-1 rounded-full bg-gray-300" /> */}
+                     <span className="self-center text-xs text-gray-600">{found?.tables?.length ?? 0}</span>
                   </div>
                   <Expand.Content>
                      <ul role="list" className="flex grow flex-col self-stretch py-1 pl-4">
-                        {found?.tables?.map((table) => (
-                           <li key={table?.table_name}>
-                              <Link
-                                 href={`/database/${database.id}/table/${table.table_name}`}
-                                 className={buttonVariants({
-                                    intent: "ghost",
-                                    size: "xs",
-                                    className: "w-full justify-start gap-2 rounded-sm hover:bg-gray-300",
-                                 })}
-                              >
-                                 <Table2 className="size-4 shrink-0 opacity-70" />
-                                 <span className="truncate">{table?.table_name}</span>
-                              </Link>
-                           </li>
-                        ))}
+                        {found?.tables?.map((table) => {
+                           const href = `/database/${database.id}/table/${table.table_name}`;
+                           return (
+                              <li key={table?.table_name}>
+                                 <Link
+                                    href={href}
+                                    aria-pressed={pathname === href}
+                                    className={buttonVariants({
+                                       intent: "ghost",
+                                       size: "xs",
+                                       className:
+                                          "group aria-pressed:bg-primary/15 const aria-pressed:hover:bg-primary/30 relative w-full justify-start gap-2 rounded-sm",
+                                    })}
+                                 >
+                                    <Table2 className="group-aria-pressed:text-primary-hover size-4 shrink-0 opacity-70 dark:group-aria-pressed:text-emerald-400" />
+                                    <span className="truncate">{table?.table_name}</span>
+                                    <LoadingIndicator />
+                                    {/* {pathname === href && <span className="bg-primary ml-auto size-2.5" />} */}
+                                 </Link>
+                              </li>
+                           );
+                        })}
                      </ul>
                   </Expand.Content>
                </Expand.Root>
 
                {/* Views */}
                <Expand.Root defaultOpen={false}>
-                  <div className="flex h-8 items-center gap-1 rounded-sm px-1 duration-150 hover:bg-gray-300 has-[button[aria-pressed='true']]:bg-gray-300">
-                     <Expand.Trigger
-                        intent="ghost"
-                        size="none"
-                        className="group/toggle size-6 bg-transparent hover:bg-gray-300"
-                     >
-                        {<ChevronRight className="size-4 shrink-0 duration-150 group-aria-pressed/toggle:rotate-90" />}
+                  <div className="flex h-8 items-center gap-1 rounded-sm px-1 duration-150 has-[button[aria-pressed='true']]:bg-gray-200">
+                     <Expand.Trigger intent="ghost" size="none" className="group/toggle size-6 bg-transparent">
+                        <ChevronRight className="size-4 shrink-0 duration-150 group-aria-pressed/toggle:rotate-90" />
                      </Expand.Trigger>
                      <span className="text-gray-800">Views</span>
+                     {/* <span className="mx-1 block h-1 w-1 rounded-full bg-gray-300" /> */}
+                     <span className="self-center text-xs text-gray-600">{found?.views?.length ?? 0}</span>
                   </div>
                   <Expand.Content>
                      <ul role="list" className="flex grow flex-col self-stretch py-1 pl-4">
@@ -344,11 +375,12 @@ function Item({ database, state }: { database: GetDatabasesReturn[number]; state
                                  className={buttonVariants({
                                     intent: "ghost",
                                     size: "xs",
-                                    className: "w-full justify-start gap-2 rounded-sm hover:bg-gray-300",
+                                    className: "w-full justify-start gap-2 rounded-sm hover:bg-gray-200",
                                  })}
                               >
                                  <Table2 className="size-4 shrink-0 opacity-70" />
                                  <span className="truncate">{view?.table_name}</span>
+                                 <LoadingIndicator />
                               </Link>
                            </li>
                         ))}
@@ -358,15 +390,13 @@ function Item({ database, state }: { database: GetDatabasesReturn[number]; state
 
                {/* Indexes */}
                <Expand.Root defaultOpen={false}>
-                  <div className="flex h-8 items-center gap-1 rounded-sm px-1 duration-150 hover:bg-gray-300 has-[button[aria-pressed='true']]:bg-gray-300">
-                     <Expand.Trigger
-                        intent="ghost"
-                        size="none"
-                        className="group/toggle size-6 bg-transparent hover:bg-gray-300"
-                     >
-                        {<ChevronRight className="size-4 shrink-0 duration-150 group-aria-pressed/toggle:rotate-90" />}
+                  <div className="flex h-8 items-center gap-1 rounded-sm px-1 duration-150 has-[button[aria-pressed='true']]:bg-gray-200">
+                     <Expand.Trigger intent="ghost" size="none" className="group/toggle size-6 bg-transparent">
+                        <ChevronRight className="size-4 shrink-0 duration-150 group-aria-pressed/toggle:rotate-90" />
                      </Expand.Trigger>
                      <span className="text-gray-800">Indexes</span>
+                     {/* <span className="mx-1 block h-1 w-1 rounded-full bg-gray-300" /> */}
+                     <span className="self-center text-xs text-gray-600">{found?.indexes?.length ?? 0}</span>
                   </div>
                   <Expand.Content>
                      <ul role="list" className="flex grow flex-col self-stretch py-1 pl-4">
@@ -378,11 +408,12 @@ function Item({ database, state }: { database: GetDatabasesReturn[number]; state
                                  className={buttonVariants({
                                     intent: "ghost",
                                     size: "xs",
-                                    className: "w-full justify-start gap-2 rounded-sm hover:bg-gray-300",
+                                    className: "w-full justify-start gap-2 rounded-sm hover:bg-gray-200",
                                  })}
                               >
                                  <Table2 className="size-4 shrink-0 opacity-70" />
                                  <span className="truncate">{index.indexname}</span>
+                                 <LoadingIndicator />
                               </Link>
                            </li>
                         ))}
@@ -392,15 +423,13 @@ function Item({ database, state }: { database: GetDatabasesReturn[number]; state
 
                {/* Sequences */}
                <Expand.Root defaultOpen={false}>
-                  <div className="flex h-8 items-center gap-1 rounded-sm px-1 duration-150 hover:bg-gray-300 has-[button[aria-pressed='true']]:bg-gray-300">
-                     <Expand.Trigger
-                        intent="ghost"
-                        size="none"
-                        className="group/toggle size-6 bg-transparent hover:bg-gray-300"
-                     >
-                        {<ChevronRight className="size-4 shrink-0 duration-150 group-aria-pressed/toggle:rotate-90" />}
+                  <div className="flex h-8 items-center gap-1 rounded-sm px-1 duration-150 has-[button[aria-pressed='true']]:bg-gray-200">
+                     <Expand.Trigger intent="ghost" size="none" className="group/toggle size-6 bg-transparent">
+                        <ChevronRight className="size-4 shrink-0 duration-150 group-aria-pressed/toggle:rotate-90" />
                      </Expand.Trigger>
                      <span className="text-gray-800">Sequences</span>
+                     {/* <span className="mx-1 block h-1 w-1 rounded-full bg-gray-300" /> */}
+                     <span className="self-center text-xs text-gray-600">{found?.sequences?.length ?? 0}</span>
                   </div>
                   <Expand.Content>
                      <ul role="list" className="flex grow flex-col self-stretch py-1 pl-4">
@@ -412,11 +441,12 @@ function Item({ database, state }: { database: GetDatabasesReturn[number]; state
                                  className={buttonVariants({
                                     intent: "ghost",
                                     size: "xs",
-                                    className: "w-full justify-start gap-2 rounded-sm hover:bg-gray-300",
+                                    className: "w-full justify-start gap-2 rounded-sm hover:bg-gray-200",
                                  })}
                               >
                                  <Table2 className="size-4 shrink-0 opacity-70" />
                                  <span className="truncate">{sequence.sequencename}</span>
+                                 <LoadingIndicator />
                               </Link>
                            </li>
                         ))}
@@ -427,4 +457,12 @@ function Item({ database, state }: { database: GetDatabasesReturn[number]; state
          </li>
       </Expand.Root>
    );
+}
+
+function LoadingIndicator() {
+   const { pending } = useLinkStatus();
+
+   if (!pending) return null;
+
+   return <Loader2 className="animate-in animate-zoom-in mr-0.5 ml-auto size-4 shrink-0 animate-spin" />;
 }

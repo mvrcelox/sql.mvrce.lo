@@ -76,9 +76,7 @@ function Sidebar() {
                                           setHide(!hide);
                                        }}
                                        className={cn([
-                                          "group relative isolation-auto grid h-10 place-items-center rounded-md",
-
-                                          "text-gray-600 hover:text-gray-800",
+                                          "group relative isolation-auto grid h-10 place-items-center rounded-md text-gray-600 hover:text-gray-800",
                                        ])}
                                     >
                                        <AnimatePresence>
@@ -89,7 +87,7 @@ function Sidebar() {
                                                 exit={{ opacity: 0 }}
                                                 layoutId="sidebar-hover-selector"
                                                 className="bg-background pointer-events-none absolute inset-0 -z-10 size-full rounded-md border shadow-xs"
-                                                transition={{ type: "spring", duration: 0.25, bounce: 0.2 }}
+                                                transition={{ type: "spring", duration: 0.15, bounce: 0.2 }}
                                              />
                                           )}
                                        </AnimatePresence>

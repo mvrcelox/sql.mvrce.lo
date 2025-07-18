@@ -6,7 +6,6 @@ import {
    NewBadRequestException,
    NewInternalServerException,
    NewNotFoundException,
-   NotFoundException,
 } from "@/infra/errors";
 import { createPSQLDatabase } from "@/lib/database-factory";
 import databaseSchema, { DatabaseSchema } from "@/dtos/databases.dto";
@@ -96,8 +95,10 @@ export async function findDatabase(id: string) {
    const service = DatabaseService.build(db);
    const found = await service.find(validation.data);
 
-   if (!found) return [null, new NotFoundException("Database not found").toJSON()] as const;
-   return [found, null] as const;
+   const error = NewNotFoundException.create({ message: "Database not found" });
+   if (!found) return failure(error);
+
+   return success(found);
 }
 
 export async function createDatabase(data: StrictOmit<DatabaseSchema, "id" | "owner_id">) {

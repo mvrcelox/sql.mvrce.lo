@@ -95,7 +95,8 @@ export function DataTable({ fields = [], rows = [], editable = true }: DataTable
                      return (
                         <Cell
                            key={id}
-                           id={id}
+                           pkName={primaryKey?.name || ""}
+                           pkValue={id}
                            readOnly={!editable}
                            name={field.name}
                            position={field.position}
@@ -191,55 +192,6 @@ export function DataTable({ fields = [], rows = [], editable = true }: DataTable
                // @ts-expect-error defining the number of columns
                style={{ "--columns": columns.length, direction: columnResizeDirection }}
             >
-               {/* <THead className="absolute top-0 flex flex-row">
-                     {table.getHeaderGroups().map((headerGroup) => (
-                        <TRow key={headerGroup.id} className="flex flex-row bg-gray-100">
-                           {headerGroup.headers.map((header, index) => {
-                              return (
-                                 <Th
-                                    key={header.id}
-                                    data-pinned={header.column.getIsPinned() || undefined}
-                                    colSpan={header.colSpan}
-                                    className={cn("group bg-gray-100")}
-                                    style={{ ...getCommonPinningStyles(header.column), position: "static" }}
-                                 >
-                                    {index > 0 ? (
-                                       <DataTableColumnHeader
-                                          id={header.id}
-                                          column={header.column}
-                                          // className={
-                                          //    table.getState().columnSizingInfo.deltaOffset !== 0 ? "pointer-events-none" : ""
-                                          // }
-                                       >
-                                          {flexRender(header.column.columnDef.header, header.getContext())}
-                                       </DataTableColumnHeader>
-                                    ) : (
-                                       flexRender(header.column.columnDef.header, header.getContext())
-                                    )}
-
-                                    <span
-                                       className={cn(
-                                          "absolute inset-y-0 z-50 h-full w-1 cursor-col-resize touch-none bg-transparent select-none ltr:right-0 rtl:left-0",
-                                          header.column.getIsResizing() ? "bg-primary" : "hover:bg-primary",
-                                       )}
-                                       onDoubleClick={() => header.column.resetSize()}
-                                       onMouseDown={header.getResizeHandler()}
-                                       onTouchStart={header.getResizeHandler()}
-                                       style={{
-                                          transform: header.column.getIsResizing()
-                                             ? `translateX(${
-                                                (table.options.columnResizeDirection === "rtl" ? -1 : 1) *
-                                                (table.getState().columnSizingInfo.deltaOffset ?? 0)
-                                             }px)`
-                                             : "",
-                                       }}
-                                    />
-                                 </Th>
-                              );
-                           })}
-                        </TRow>
-                     ))}
-                  </THead> */}
                <TBody className="h-fit">
                   {table.getRowModel().rows?.map((row, index) => (
                      <TRow key={row.id} data-index={index + 1} className="group/tr hover:text-foreground">
@@ -255,7 +207,7 @@ export function DataTable({ fields = [], rows = [], editable = true }: DataTable
                                  style={{ ...getCommonPinningStyles(cell.column) }}
                               >
                                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                 <span className="group-focus-within/td:border-primary pointer-events-none absolute -inset-px z-10 group-first/tr:top-0 group-focus-within/td:border" />
+                                 {/* <span className="group-focus-within/td:border-primary pointer-events-none absolute -inset-px z-10 group-first/tr:top-0 group-focus-within/td:border" /> */}
                               </Td>
                            );
                         })}

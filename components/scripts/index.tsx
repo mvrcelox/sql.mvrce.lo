@@ -71,26 +71,24 @@ export default function ScriptsProvider({ children }: React.PropsWithChildren) {
       }
 
       const dbIndex = databases.findIndex((y) => y.databaseId === databaseId);
-      const copy: typeof databases = JSON.parse(JSON.stringify(databases));
-
       const { id = uuidv4(), callback } = options ?? {};
 
       const script = { id, sql, callback };
       if (dbIndex === -1) {
-         copy.push({ databaseId, scripts: [script] });
-         setDatabases([...copy]);
+         databases.push({ databaseId, scripts: [script] });
+         setDatabases([...databases]);
          return id;
       }
 
-      const scriptIndex = copy[dbIndex].scripts.findIndex((y) => y.id === id);
+      const scriptIndex = databases[dbIndex].scripts.findIndex((y) => y.id === id);
       if (scriptIndex === -1) {
-         copy[dbIndex].scripts.push(script);
-         setDatabases([...copy]);
+         databases[dbIndex].scripts.push(script);
+         setDatabases([...databases]);
          return id;
       }
 
-      copy[dbIndex].scripts[scriptIndex] = script;
-      setDatabases([...copy]);
+      databases[dbIndex].scripts[scriptIndex] = script;
+      setDatabases([...databases]);
       return id;
    };
 
@@ -104,14 +102,12 @@ export default function ScriptsProvider({ children }: React.PropsWithChildren) {
       const scriptId = uuidv4();
       const index = databases.findIndex((y) => y.databaseId === databaseRef.current);
 
-      const copy: typeof databases = JSON.parse(JSON.stringify(databases));
-
       if (index !== -1) {
-         copy[index].scripts.push({ id: scriptId, sql, callback });
+         databases[index].scripts.push({ id: scriptId, sql, callback });
       } else {
-         copy.push({ databaseId: databaseId, scripts: [{ id: scriptId, sql, callback }] });
+         databases.push({ databaseId: databaseId, scripts: [{ id: scriptId, sql, callback }] });
       }
-      setDatabases(copy);
+      setDatabases(databases);
       return scriptId;
    };
 
@@ -129,12 +125,12 @@ export default function ScriptsProvider({ children }: React.PropsWithChildren) {
          const scriptIndex = databases[databaseIndex].scripts.findIndex((script) => script.id === scriptId);
          if (scriptIndex === -1) throw "Script not found or doesn't exists.";
 
-         const copy: typeof databases = JSON.parse(JSON.stringify(databases));
-         copy[databaseIndex].scripts[scriptIndex] = { sql, id: scriptId, callback };
+         databases[databaseIndex].scripts[scriptIndex] = { sql, id: scriptId, callback };
 
-         setDatabases(copy);
+         setDatabases(databases);
          return databases[databaseIndex].scripts[scriptIndex].id;
       } catch (error) {
+         console.error(error);
          toast.error(error as string);
          return;
       }
@@ -156,10 +152,8 @@ export default function ScriptsProvider({ children }: React.PropsWithChildren) {
          const script = databases[index].scripts.findIndex((script) => script.id === id);
          if (script === -1) throw "Script not found or doesn't exists.";
 
-         const copy: typeof databases = JSON.parse(JSON.stringify(databases));
-
-         copy[index].scripts = databases[index].scripts.filter((script) => script.id !== id);
-         setDatabases(copy);
+         databases[index].scripts = databases[index].scripts.filter((script) => script.id !== id);
+         setDatabases([...databases]);
       } catch (error) {
          toast.error(error as string);
       }
@@ -172,6 +166,7 @@ export default function ScriptsProvider({ children }: React.PropsWithChildren) {
            .join("\n")
       : "";
 
+   const textarea = useRef<HTMLTextAreaElement>(null);
    const { mutate: run, isPending: isRunning } = useMutation({
       mutationKey: ["run-script", databases],
       mutationFn: async (script: string | undefined) => {
@@ -187,8 +182,10 @@ export default function ScriptsProvider({ children }: React.PropsWithChildren) {
             return;
          }
 
-         const [, err] = await queryDatabase({ databaseId: +databaseId, sql: script });
+         console.log({ databaseId });
+         const [, err] = await queryDatabase({ databaseId, sql: script });
          if (err) {
+            console.error(err);
             toast.error(err.message);
             return;
          }
@@ -231,7 +228,15 @@ export default function ScriptsProvider({ children }: React.PropsWithChildren) {
                   <DialogTitle>Scripts editor</DialogTitle>
                </DialogHeader>
                <DialogBody>
-                  <TextArea readOnly defaultValue={script} className="scroll w-full resize-none whitespace-pre" />
+                  <TextArea
+                     defaultValue={script}
+                     onChange={(e) => {
+                        if (!textarea.current) return;
+                        textarea.current.value = e.target.value;
+                     }}
+                     ref={textarea}
+                     className="scroll w-full resize-none whitespace-pre lg:h-24.5"
+                  />
                </DialogBody>
                <DialogFooter className="xs:flex-row-reverse xs:justify-between flex-col">
                   <div className="xxs:flex-row-reverse xxs:items-center flex flex-col gap-2">
@@ -239,7 +244,7 @@ export default function ScriptsProvider({ children }: React.PropsWithChildren) {
                         disabled={isRunning}
                         intent="primary"
                         className="xxs:max-xs:grow gap-2"
-                        onClick={() => run(script)}
+                        onClick={() => run(textarea?.current?.value ?? "")}
                      >
                         Run
                         {isRunning ? (

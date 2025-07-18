@@ -63,7 +63,8 @@ function format<T>(cell: T): FormatReturn {
 }
 
 interface CellProps {
-   id: string | number;
+   pkName: string;
+   pkValue: string | number;
    name: string;
    position: number;
    type: Type;
@@ -73,7 +74,8 @@ interface CellProps {
    defaultValue: unknown;
 }
 
-export default function Cell({ id, name, type, nullable, defaultValue, readOnly }: CellProps) {
+export default function Cell({ pkName, pkValue, name, type, nullable, defaultValue, readOnly }: CellProps) {
+   const isDirty = useRef<boolean>(false);
    const inputRef = useRef<HTMLInputElement | null>(null);
    const params = useParams<{ databaseId: string; tableName: string }>();
 
@@ -86,7 +88,6 @@ export default function Cell({ id, name, type, nullable, defaultValue, readOnly 
    const [index, setIndex] = useState<number>(0);
    const [history, setHistory] = useState<(string | null)[]>([formatted.data]);
 
-   const initial = history[0];
    const value = history[index];
    function setValue(value: string | null) {
       setHistory((x) => [...x.slice(0, index + 1), value]);
@@ -103,19 +104,20 @@ export default function Cell({ id, name, type, nullable, defaultValue, readOnly 
    }
 
    function undo() {
-      setIndex((x) => x - 1);
-      const undo = history[index - 1];
+      if (index === 0) return;
 
-      // If hasn't an undo option
-      if (undo === undefined) return;
-      if (undo === initial) return clearScript();
+      const i = index - 1;
+      setIndex(i);
+      const undo = history[i];
+
+      if (undo === history[0]) return clearScript();
 
       // Format the data to SQL format
       const sql = getSQL(undo!);
       if (!sql) return;
 
       // Append/update the script
-      setScript(sql, {
+      scriptId.current = setScript(sql, {
          id: scriptId.current,
          callback: (method) => {
             scriptId.current = undefined;
@@ -134,12 +136,13 @@ export default function Cell({ id, name, type, nullable, defaultValue, readOnly 
    }
 
    function redo() {
-      setIndex((x) => x + 1);
-      const redo = history[index + 1];
+      if (history.length <= index + 1) return;
 
-      // If hasn't an redo option
-      if (redo === undefined) return;
-      if (redo === initial) return clearScript();
+      const i = index + 1;
+      setIndex(i);
+      const redo = history[i];
+
+      if (redo === history[0]) return clearScript();
 
       // Format the data to SQL format
       const sql = getSQL(redo);
@@ -174,6 +177,7 @@ export default function Cell({ id, name, type, nullable, defaultValue, readOnly 
 
    function getSQL(current: string | null) {
       let sql = "";
+
       switch (type) {
          case "date": {
             const date = new Date(current ?? "");
@@ -217,13 +221,18 @@ export default function Cell({ id, name, type, nullable, defaultValue, readOnly 
          default:
             break;
       }
-      return `UPDATE ${params.tableName} SET ${name} = ${sql} WHERE id = ${id}`;
+      return `UPDATE ${params.tableName} SET ${name} = ${sql} WHERE ${pkName} = '${pkValue}';`;
    }
 
    function detectChange(current: string | null) {
-      if (current === "" && history[index] === null) return;
-      if (current == history[index]) return;
-      if (current == initial) return clearScript();
+      if (!isDirty.current) return;
+      if (current === history[index]) return;
+
+      if (current === history[0]) {
+         setValue(current);
+         clearScript();
+         return;
+      }
 
       let sql = "";
       switch (type) {
@@ -276,12 +285,9 @@ export default function Cell({ id, name, type, nullable, defaultValue, readOnly 
             break;
       }
 
-      // Check if the value is valid base on the type of the data
-      // if (inputRef.current) inputRef.current.value = current ?? "";
-
       setValue(current);
       setDatabase(params.databaseId);
-      const script = `UPDATE ${params.tableName} SET ${name} = ${sql} WHERE id = ${id}`;
+      const script = `UPDATE ${params.tableName} SET ${name} = ${sql} WHERE ${pkName} = '${pkValue}';`;
 
       function callback(method: "clear" | "run") {
          scriptId.current = undefined;
@@ -314,10 +320,14 @@ export default function Cell({ id, name, type, nullable, defaultValue, readOnly 
                      ref={inputRef}
                      intent="none"
                      size="none"
-                     data-changed={value != initial}
+                     data-changed={value != history[0]}
                      onFocusCapture={() => setFocus(true)}
                      onBlurCapture={() => setFocus(false)}
-                     onBlur={(e) => detectChange(e.currentTarget.value)}
+                     onChange={() => (isDirty.current = true)}
+                     onBlur={(e) => {
+                        detectChange(e.currentTarget.value);
+                        isDirty.current = false;
+                     }}
                      onKeyDown={(e) => {
                         if (
                            e.ctrlKey &&
@@ -345,7 +355,7 @@ export default function Cell({ id, name, type, nullable, defaultValue, readOnly 
                         }
                      }}
                      className={cn(
-                        "data-[changed='true']:!bg-primary/10 absolute inset-0 h-full w-full rounded-none px-2 overflow-ellipsis group-[data-pinned]:z-[1]",
+                        "data-[changed='true']:!bg-primary/10 caret-foreground selection:bg-primary/20 absolute inset-0 h-full w-full rounded-none px-2 overflow-ellipsis group-[data-pinned]:z-[1]",
                         // focus && "bg-background",
                         value === null &&
                            "placeholder-shown:not-focus:text-center placeholder-shown:focus:placeholder:text-transparent",
@@ -399,9 +409,7 @@ export default function Cell({ id, name, type, nullable, defaultValue, readOnly 
                   </ContextMenuItemWithTooltip>
                </div>
                <ContextMenuSeparator />
-               <div className="flex items-center justify-between gap-1 pr-1">
-                  <ContextMenuLabel>Properties</ContextMenuLabel>
-               </div>
+               <ContextMenuLabel>Properties</ContextMenuLabel>
                <div className="flex flex-col gap-1 px-1 pb-1 text-sm">
                   {/* <p className="flex items-center justify-between gap-1 self-stretch">
                      <span className="text-gray-700">Name:</span>
@@ -425,7 +433,11 @@ export default function Cell({ id, name, type, nullable, defaultValue, readOnly 
                {/* <ContextMenuLabel>Actions</ContextMenuLabel> */}
                <ContextMenuItem
                   disabled={value === "[NULL]" || !nullable}
-                  onSelect={() => detectChange(null)}
+                  onSelect={() => {
+                     isDirty.current = true;
+                     detectChange(null);
+                     isDirty.current = false;
+                  }}
                   className="gap-2"
                >
                   <CircleDashed className="size-4 shrink-0" />
@@ -434,7 +446,11 @@ export default function Cell({ id, name, type, nullable, defaultValue, readOnly 
                {type === "boolean" ? (
                   <ContextMenuItem
                      disabled={value === null}
-                     onSelect={() => detectChange(value === "true" ? "false" : "true")}
+                     onSelect={() => {
+                        isDirty.current = true;
+                        detectChange(value === "true" ? "false" : "true");
+                        isDirty.current = false;
+                     }}
                      className="gap-2"
                   >
                      {value === "true" ? (

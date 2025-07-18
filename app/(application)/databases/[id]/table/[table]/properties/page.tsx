@@ -7,6 +7,7 @@ import { createPSQLDatabase } from "@/lib/database-factory";
 import { DataTable } from "@/components/data-table";
 import { Metadata } from "next";
 import { loadSearchParams } from "../search-params";
+import { BadRequestException } from "@/infra/errors";
 
 interface Params {
    databaseId: string;
@@ -32,9 +33,9 @@ export const maxDuration = 10;
 const getData = async (params: Params, searchParams: SearchParams) => {
    "use server";
 
-   if (isNaN(Number(params?.databaseId))) throw new Error("Invalid database");
+   const databaseId = params?.databaseId;
+   if (!databaseId) throw new BadRequestException("Invalid database ID");
 
-   const databaseId = parseInt(params?.databaseId);
    const [found, err] = await findDatabase(databaseId);
 
    if (err) throw err;

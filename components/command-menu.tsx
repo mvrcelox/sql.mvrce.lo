@@ -66,7 +66,7 @@ export default function CommandMenu({ children }: { children?: JSX.Element }) {
    const [open, setOpen] = useState(false);
    const [searchValue, setSearchValue] = useState("");
 
-   const [currentSection, setSection] = useState("");
+   const [currentSection] = useState("");
 
    // Toggle the menu when ⌘K is pressed
    useEffect(() => {
@@ -124,7 +124,8 @@ export default function CommandMenu({ children }: { children?: JSX.Element }) {
                         return (
                            <CommandGroup key={section.title} heading={section.title}>
                               {section.items.map((item, index) => {
-                                 if (item === "separator") return <CommandSeparator key={"separator-" + index} />;
+                                 if (typeof item === "string" && item === "separator")
+                                    return <CommandSeparator key={"separator-" + index} />;
                                  return (
                                     <CommandItem key={item.label.toLowerCase().replace(/ /g, "-")} className="py-2">
                                        <item.icon className="size-4 shrink text-gray-500" />
@@ -134,8 +135,8 @@ export default function CommandMenu({ children }: { children?: JSX.Element }) {
                               })}
                            </CommandGroup>
                         );
-                     const isRight = section.items.some((item) => item.section.title === currentSection);
-                     if (!isRight) return null;
+                     // const isRight = section.items.some((item) => item.title === currentSection);
+                     // if (!isRight) return null;
 
                      return <CommandItem key={section.title}>Olá</CommandItem>;
                   })}

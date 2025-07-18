@@ -95,7 +95,8 @@ export function DataTable({ fields = [], rows = [], editable = true }: DataTable
                      return (
                         <Cell
                            key={id}
-                           id={id}
+                           pkName={primaryKey?.name || "id"}
+                           pkValue={id}
                            readOnly={!editable}
                            name={field.name}
                            position={field.position}
@@ -108,6 +109,11 @@ export function DataTable({ fields = [], rows = [], editable = true }: DataTable
                   },
                   header: field.name,
                   enableHiding: true,
+                  meta: {
+                     type: field.type,
+                     position: field.position,
+                     nullable: field.nullable == "YES",
+                  },
                }) satisfies ColumnDef<unknown>,
          ),
       ],
@@ -137,7 +143,10 @@ export function DataTable({ fields = [], rows = [], editable = true }: DataTable
    return (
       <div className="h-full">
          <TableWrapper className="flex h-full flex-col overflow-auto">
-            <div role="rowheader" className="sticky top-0 z-[2] flex w-max flex-row border-b text-sm text-gray-700">
+            <div
+               role="rowheader"
+               className="grid-stack sticky top-0 z-[2] flex w-max flex-row border-b text-sm text-gray-700"
+            >
                {table.getHeaderGroups().map((headerGroup) =>
                   headerGroup.headers.map((header, index) => {
                      return (
@@ -145,7 +154,7 @@ export function DataTable({ fields = [], rows = [], editable = true }: DataTable
                            key={header.id}
                            data-pinned={header.column.getIsPinned() || undefined}
                            className={cn(
-                              "group grid h-9 shrink-0 grid-cols-1 items-center truncate border-r bg-gray-100 px-3 font-medium hover:bg-gray-200/50",
+                              "group grid h-9 shrink-0 grid-cols-1 items-center truncate border-r bg-gray-100 px-3 font-medium",
                            )}
                            style={{ ...getCommonPinningStyles(header.column) }}
                         >
@@ -255,7 +264,7 @@ export function DataTable({ fields = [], rows = [], editable = true }: DataTable
                                  style={{ ...getCommonPinningStyles(cell.column) }}
                               >
                                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                 <span className="group-focus-within/td:border-primary pointer-events-none absolute -inset-px z-10 group-first/tr:top-0 group-focus-within/td:border" />
+                                 {/* <span className="group-focus-within/td:border-primary pointer-events-none absolute -inset-px z-10 group-first/tr:top-0 group-focus-within/td:border" /> */}
                               </Td>
                            );
                         })}

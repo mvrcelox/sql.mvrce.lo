@@ -40,7 +40,7 @@ export default class Database {
       return await this.database.select().from(this.table).where(where);
    }
 
-   async findUnique(id: number) {
+   async findUnique(id: string) {
       const data = await this.database.select().from(this.table).where(eq(this.table.id, id));
       return data?.[0] || null;
    }
@@ -55,7 +55,7 @@ export default class Database {
       await this.database.insert(this.table).values(validation.data);
    }
 
-   async update(id: number, data: UpdateDatabaseSchema) {
+   async update(id: string, data: UpdateDatabaseSchema) {
       const schema = databaseSchema.omit({ id: true }).partial();
       const validation = await schema.safeParseAsync(data);
       if (!validation.success) {
@@ -65,7 +65,7 @@ export default class Database {
       await this.database.update(this.table).set(validation.data).where(eq(this.table.id, id));
    }
 
-   async delete(id: number) {
+   async delete(id: string) {
       await this.database.delete(this.table).where(eq(this.table.id, id));
    }
 }

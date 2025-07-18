@@ -5,7 +5,12 @@ import credentialsSchema from "@/dtos/credentials";
 import { authedProcedure } from "./auth";
 import db from "@/db";
 import { databasesTable } from "@/db/schema";
-import { BadRequestException, InternalServerException, NotFoundException } from "@/infra/errors";
+import {
+   BadRequestException,
+   InternalServerException,
+   NewBadRequestException,
+   NotFoundException,
+} from "@/infra/errors";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { GetTableParams } from "@/dtos/_default";
 import { createServerAction } from "zsa";
@@ -77,7 +82,14 @@ export const updateDatabase = authedProcedure.input(databaseSchema.partial()).ha
 
    if (!rows.length) throw new NotFoundException("Database doesn't exists.");
 
-   const database = { ...input, owner_id: ctx.user?.id };
+   const database = {
+      ...input,
+      password: input?.password?.length
+         ? AES.encrypt(input.password, process.env.CRYPTO_KEY as string).toString()
+         : undefined,
+      owner_id: ctx.user?.id,
+   };
+
    try {
       await db
          .update(databasesTable)
@@ -115,7 +127,8 @@ export const queryDatabase = authedProcedure
       try {
          const result = await client?.query(input.sql, input.params);
          if (!result) return { fields: [], rows: [] };
-         return { fields: Array.from(result.fields), rows: Array.from(result.rows) };
+
+         return { success: true };
       } catch (error) {
          console.error(error);
          throw new InternalServerException({ cause: error });
@@ -191,9 +204,13 @@ export const getConnection = authedProcedure.input(z.string().min(1, "Invalid ID
 
 export const getDatabaseProperties = authedProcedure
    .input(z.object({ databaseId: z.string(), tableName: z.string() }))
-   .onInputParseError(async (error) => {
+   .onInputParseError(async (cause) => {
+      const error = NewBadRequestException.create({
+         message: "Invalid input",
+         cause,
+      });
       console.error(error);
-      throw new BadRequestException("Invalid database!");
+      throw error;
    })
    .handler(async ({ input }) => {
       const { databaseId, tableName } = input;

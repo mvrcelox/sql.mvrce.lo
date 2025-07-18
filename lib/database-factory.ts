@@ -130,8 +130,6 @@ class PSQLDatabase<TStatus extends Status = "disconnected"> implements IDatabase
             ),
          ]);
 
-         console.log({ count: data?.rowCount || 0, rows: data.rows, fields: fields.rows });
-
          return { count: data?.rowCount || 0, rows: data?.rows ?? [], fields: fields.rows };
       } catch (error) {
          console.error(error);

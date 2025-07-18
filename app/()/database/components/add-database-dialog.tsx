@@ -18,7 +18,7 @@ import databaseSchema from "@/dtos/databases.dto";
 import credentialsSchema from "@/dtos/credentials";
 import { useMutation } from "@tanstack/react-query";
 import { ClipboardPaste, Loader2 } from "lucide-react";
-import { Controller, FieldErrors, FormProvider, useForm } from "react-hook-form";
+import { Controller, FieldErrors, FormProvider, useForm, useFormContext, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
@@ -78,7 +78,7 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
 
          const response = await testDatabaseConnection(values);
          if (!response.success) {
-            console.log(response.error);
+            console.error(response.error);
             toast.error(response.error.message, { description: response.error?.action });
             return;
          }
@@ -283,7 +283,7 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
 
                      <Separator className="-mx-4 my-4" />
 
-                     <div className="flex flex-row self-stretch">
+                     <div className="mb-2 flex flex-row self-stretch">
                         <div className="grid grow grid-cols-1 gap-1 sm:col-span-3">
                            <Label required>Schema</Label>
                            {/* <Input
@@ -298,7 +298,7 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
                               }
                            /> */}
                         </div>
-                        <div className="mt-6 flex items-center gap-3 px-3">
+                        <div className="flex items-center gap-3 px-3">
                            <Label className="text-sm" htmlFor="ssl">
                               SSL
                            </Label>
@@ -323,17 +323,7 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
 
                      <div className="grid grid-cols-1 gap-1">
                         <Label required>Name</Label>
-                        <Input
-                           intent="opaque2"
-                           aria-invalid={!!errors?.name}
-                           placeholder={"My favorite database"}
-                           {...register("name")}
-                           className={
-                              errors?.name
-                                 ? "!border-red-500 !outline-red-500 dark:!border-red-600 dark:!outline-red-600"
-                                 : undefined
-                           }
-                        />
+                        <NameInput />
                      </div>
 
                      <div className="-m-4 mt-2 border-t">
@@ -386,5 +376,27 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
             </DialogBody>
          </DialogContent>
       </Dialog>
+   );
+}
+
+function NameInput() {
+   const {
+      control,
+      formState: { errors },
+      register,
+   } = useFormContext<CreateDatabaseSchema>();
+
+   const database = useWatch({ control, name: "database", exact: true });
+
+   return (
+      <Input
+         intent="opaque2"
+         aria-invalid={!!errors?.name}
+         placeholder={database ?? "My favorite database"}
+         {...register("name")}
+         className={
+            errors?.name ? "!border-red-500 !outline-red-500 dark:!border-red-600 dark:!outline-red-600" : undefined
+         }
+      />
    );
 }

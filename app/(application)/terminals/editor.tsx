@@ -18,14 +18,14 @@ export default function Editor() {
    });
 
    const caretPos = selection.direction === "backward" ? selection.start : selection.end;
-   const top = caretPos
-      ? value
-           .split("\n")
-           .reduce(
-              (acc, line) => (caretPos - acc[1] > line.length ? [acc[0] + 1, acc[1] + line.length] : acc),
-              [0, 0],
-           )[0] * 20
-      : 0;
+   // const top = caretPos
+   //    ? value
+   //         .split("\n")
+   //         .reduce(
+   //            (acc, line) => (caretPos - acc[1] > line.length ? [acc[0] + 1, acc[1] + line.length] : acc),
+   //            [0, 0],
+   //         )[0] * 20
+   //    : 0;
 
    const left = value.split("\n").reduce((acc, line) => {
       // console.log({
@@ -90,11 +90,11 @@ export default function Editor() {
             onClick={() => textArea.current?.focus()}
          >
             {value?.split("\n").map((line, index) => {
-               let characters = 0;
+               // let characters = 0;
                return (
                   <p key={index}>
                      {line.split(" ").map((word, wordIndex) => {
-                        characters += word.length + 1; // +1 for the space
+                        // characters += word.length + 1; // +1 for the space
                         if (word === "=") {
                            return (
                               <span key={wordIndex} className="font-mono text-fuchsia-400 dark:text-fuchsia-600">

@@ -23,7 +23,7 @@ import {
    DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { parseAsArrayOf, parseAsInteger, parseAsString, useQueryState } from "nuqs";
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { Input } from "./ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Separator } from "./ui/separator";
@@ -35,6 +35,7 @@ import { DatatypeToTypescript, DatatypeToZodObject, SQLType } from "@/constants/
 import { useScripts } from "./scripts";
 import debounce from "debounce";
 import { cn } from "@/lib/utils";
+import { isFocusedOnElement } from "@/lib/is-focused-on-element";
 
 export interface DataTableToolbarProps {
    type?: "columns" | "rows";
@@ -79,6 +80,27 @@ function RefreshButton() {
 function SaveChangesButton() {
    const { scripts, show } = useScripts();
 
+   useEffect(() => {
+      function save(e: KeyboardEvent) {
+         console.log({
+            key: e.key,
+            shiftKey: e.shiftKey,
+            ctrlKey: e.ctrlKey,
+            altKey: e.altKey,
+         });
+
+         if (e.key.toLowerCase() == "s" && e.ctrlKey && e.shiftKey && !e.altKey) {
+            if (isFocusedOnElement()) return;
+            e.preventDefault();
+            show();
+         }
+      }
+
+      if (scripts.length) document.addEventListener("keypress", save);
+
+      return () => document.removeEventListener("keypress", save);
+   }, [scripts, show]);
+
    return (
       <TooltipProvider disableHoverableContent delayDuration={0}>
          <Tooltip>
@@ -94,7 +116,14 @@ function SaveChangesButton() {
                   <span>Save</span>
                </Button>
             </TooltipTrigger>
-            <TooltipContent>Save changes</TooltipContent>
+            <TooltipContent>
+               Save changes
+               <div className="mt-1 space-x-0.5 text-xs">
+                  <kbd className="font-geist-sans rounded-sm bg-gray-700 px-1 text-gray-100">Ctrl</kbd>
+                  <kbd className="font-geist-sans rounded-sm bg-gray-700 px-1 text-gray-100">Shift</kbd>
+                  <kbd className="font-geist-sans rounded-sm bg-gray-700 px-1 text-gray-100">S</kbd>
+               </div>
+            </TooltipContent>
          </Tooltip>
       </TooltipProvider>
    );
@@ -138,19 +167,16 @@ function HiddenColumnsButton() {
    );
 
    const { data, isLoading } = useQuery({
-      queryKey: ["get-properties", params],
+      queryKey: ["get-properties", params.databaseId, params.tableName],
       queryFn: async () => {
          const [properties, err] = await getDatabaseProperties({
-            databaseId: +params.databaseId,
+            databaseId: params.databaseId,
             tableName: params.tableName,
          });
 
-         if (err) {
-            toast.error(err.message);
-            return [];
-         }
+         if (err) throw err;
 
-         return properties;
+         return properties ?? [];
       },
       refetchOnMount: true,
       refetchInterval: false,
@@ -273,17 +299,14 @@ function ExportButton({ type }: ExportButtonProps) {
    const params = useParams() as { databaseId: string; tableName: string };
 
    const { mutateAsync: waitProperties } = useMutation({
-      mutationKey: ["get-properties", params],
+      mutationKey: ["get-properties", params.databaseId, params.tableName],
       mutationFn: async () => {
          const [properties, err] = await getDatabaseProperties({
-            databaseId: +params.databaseId,
+            databaseId: params.databaseId,
             tableName: params.tableName,
          });
 
-         if (err) {
-            toast.error(err.message);
-            return;
-         }
+         if (err) throw err;
 
          return properties;
       },
@@ -308,7 +331,10 @@ function ExportButton({ type }: ExportButtonProps) {
          navigator.clipboard.writeText(stringified);
          return result;
       },
-      onError: () => toast.error("An error happened trying to copy the properties to typescript."),
+      onError: (error) => {
+         console.error(error);
+         toast.error("An error happened trying to copy the properties to typescript.");
+      },
       onSuccess: () => toast("Typescript copied to clipboard."),
    });
 

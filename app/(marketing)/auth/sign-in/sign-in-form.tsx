@@ -31,21 +31,15 @@ export default function SignInForm() {
                <Label required htmlFor="">
                   E-mail
                </Label>
-               <div className="relative">
-                  <Input
-                     intent="opaque2"
-                     autoComplete="username webauthn"
-                     spellCheck="false"
-                     inputMode="email"
-                     placeholder="john@acme.com"
-                     {...register("email")}
-                     className="pr-16"
-                  />
-                  <span className="absolute top-1/2 right-3 block -translate-y-1/2 rounded-sm text-xs text-gray-400">
-                     {"[ENTER]"}
-                  </span>
-               </div>
-
+               <Input
+                  intent="opaque2"
+                  autoComplete="username webauthn"
+                  spellCheck="false"
+                  inputMode="email"
+                  placeholder="john@acme.com"
+                  {...register("email")}
+                  className="pr-16"
+               />
                <AnimatePresence>
                   {errors.email?.message ? (
                      <motion.div

@@ -53,7 +53,7 @@ export const DataTableColumnHeader = ({ children, id, column, className, ...prop
                      <ArrowUpWideNarrow className="size-4 shrink-0" />
                   ))}
             </DropdownMenuTrigger>
-            <DropdownMenuContent>
+            <DropdownMenuContent align="end">
                <DropdownMenuLabel>Column actions</DropdownMenuLabel>
                {sort?.toLowerCase() === id.toLowerCase() && order?.toLowerCase() !== "desc" ? (
                   <DropdownMenuItem

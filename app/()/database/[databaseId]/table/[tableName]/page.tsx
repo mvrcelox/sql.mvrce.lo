@@ -33,11 +33,10 @@ const getData = async (params: Params, searchParams: SearchParams) => {
 
    if (!params?.databaseId) throw new Error("Invalid database");
 
-   const [found, err] = await findDatabase(params.databaseId);
-   if (err) throw err;
-   if (!found) notFound();
+   const response = await findDatabase(params.databaseId);
+   if (!response.success) throw response.error;
 
-   const client = createPSQLDatabase(found);
+   const client = createPSQLDatabase(response.data);
 
    try {
       await client?.connect();

@@ -11,7 +11,7 @@ import tryCatch from "@/helpers/try-catch";
 import { createPSQLDatabase } from "@/lib/database-factory";
 
 export const connectToDatabase = authedProcedure
-   .input(z.number().min(1, "Invalid database ID"))
+   .input(z.string().min(1, "Invalid database ID"))
    .handler(async ({ ctx, input }) => {
       const { data: databases, error } = await tryCatch(
          db

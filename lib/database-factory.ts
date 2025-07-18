@@ -102,10 +102,7 @@ class PSQLDatabase<TStatus extends Status = "disconnected"> implements IDatabase
                      c.udt_name as type,
                      c.is_nullable as nullable,
                      c.column_default as default,
-                     CASE
-                        WHEN kcu.column_name IS NOT NULL THEN 'PRIMARY KEY'
-                        ELSE ''
-                     END AS key_type
+                     tc.constraint_type as key_type
                   FROM
                      information_schema.columns AS c
                   LEFT JOIN
@@ -120,7 +117,6 @@ class PSQLDatabase<TStatus extends Status = "disconnected"> implements IDatabase
                   WHERE
                      c.table_schema = 'public'
                      AND c.table_name = $1
-                     AND (tc.constraint_type = 'PRIMARY KEY' OR tc.constraint_type IS NULL)
                   ORDER BY
                      c.ordinal_position ASC`,
                [table],
@@ -129,6 +125,7 @@ class PSQLDatabase<TStatus extends Status = "disconnected"> implements IDatabase
                `SELECT * FROM ${table} ORDER BY ${typeof options.sort === "number" ? options.sort : `"${options.sort}"`} ${options.order} LIMIT ${options.limit}`,
             ),
          ]);
+         console.log({ fields: fields.rows });
 
          return { count: data?.rowCount || 0, rows: data?.rows ?? [], fields: fields.rows };
       } catch (error) {

@@ -20,7 +20,7 @@ import useEffectAfterMount from "@/hooks/use-effect-after-mount";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 
-type Type = "date" | "boolean" | "number" | "string" | "array" | "json" | "null" | "unknown";
+type Type = "date" | "boolean" | "number" | "int" | "float" | "string" | "array" | "json" | "null" | "unknown";
 
 interface FormatReturn {
    type: Type;

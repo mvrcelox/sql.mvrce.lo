@@ -59,7 +59,7 @@ export default function TableHeader() {
                   size: "sm",
                   className: "hover:text-foreground group relative text-gray-600 aria-selected:text-gray-800",
                })}
-               href={`/database/${params.databaseId}/table/${params.tableName}`}
+               href={`/databases/${params.id}/table/${params.table}`}
             >
                <AnimatePresence>
                   {hover === 1 ? (

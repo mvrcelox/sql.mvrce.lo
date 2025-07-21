@@ -19,10 +19,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useMutation } from "@tanstack/react-query";
 import { signOut, useSession } from "next-auth/react";
-import { useSessionStorage } from "@uidotdev/usehooks";
 
 import CommandMenu from "@/components/command-menu";
 import ThemeSelector from "@/components/sidebar-theme-selector";
+import { useStorage } from "@/hooks/use-storage";
 
 const sections = [
    [{ href: "/dashboard", label: "Dashboard", icon: Gauge, toggle: false }],
@@ -33,14 +33,13 @@ const sections = [
    ],
 ] as const;
 
-const sidebarAnimationDuration = 0.2;
 function Sidebar() {
    const pathname = usePathname();
    const isCurrentPath = (href: string) => {
       return pathname.startsWith(href.split("/*")?.[0] ?? "");
    };
 
-   const [hide, setHide] = useSessionStorage<boolean>("sub-sidebar", false);
+   const [hide, setHide] = useStorage<boolean>("sub-sidebar", false);
 
    return (
       <motion.aside
@@ -48,21 +47,21 @@ function Sidebar() {
          animate={{ marginLeft: 0 }}
          exit={{ marginLeft: -45 }}
          transition={{
-            type: "tween",
-            ease: "circInOut",
-            duration: sidebarAnimationDuration,
+            type: "spring",
+            stiffness: 500,
+            damping: 37,
          }}
-         className="sticky top-0 z-[3] flex w-[calc(2.75rem+1px)] flex-col self-stretch border-r bg-gray-100 md:w-[calc(3rem+1px)]"
+         className="sticky top-0 z-[2] flex flex-col self-stretch md:w-14"
       >
          {/* <div className="bg-background grid max-h-[calc(2.5rem+1px)] place-items-center border-b py-2">
             <Logo className="size-6" />
          </div> */}
 
-         <nav className="flex shrink-0 grow flex-col gap-2 self-stretch p-1">
+         <nav className="flex shrink-0 grow flex-row gap-2 p-1 md:flex-col md:p-1.5">
             <TooltipProvider delayDuration={0} skipDelayDuration={0} disableHoverableContent>
                {sections.map((section, idx) => {
                   return (
-                     <div key={idx} className="flex flex-col gap-1 self-stretch">
+                     <div key={idx} className="flex shrink-0 flex-row gap-1 md:flex-col md:self-stretch">
                         {section.map((nav) => {
                            const isActive = isCurrentPath(nav.href);
                            return (
@@ -77,7 +76,7 @@ function Sidebar() {
                                           setHide(!hide);
                                        }}
                                        className={cn([
-                                          "group relative isolation-auto grid h-10 place-items-center rounded-md",
+                                          "group aria-selected:text-foreground relative isolation-auto grid aspect-square size-9 place-items-center rounded-md md:size-10",
 
                                           "text-gray-600 hover:text-gray-800",
                                        ])}
@@ -89,7 +88,7 @@ function Sidebar() {
                                                 animate={{ opacity: 1 }}
                                                 exit={{ opacity: 0 }}
                                                 layoutId="sidebar-hover-selector"
-                                                className="bg-background pointer-events-none absolute inset-0 -z-10 size-full rounded-md border shadow-xs"
+                                                className="bg-background pointer-events-none absolute inset-0 -z-10 size-full rounded-md shadow-xs"
                                                 transition={{ type: "spring", duration: 0.25, bounce: 0.2 }}
                                              />
                                           )}

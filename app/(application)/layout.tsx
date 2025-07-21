@@ -1,13 +1,13 @@
 import ClientOnly from "@/components/client-only";
 import ScriptsProvider from "@/components/scripts";
-import Sidebar from "@/components/sidebars/application-sidebar";
+import ApplicationSidebar from "@/components/sidebars/application-sidebar";
 
 export default function Layout({ children }: React.PropsWithChildren) {
    return (
       <ScriptsProvider>
-         <div className="flex grow flex-row self-stretch">
+         <div className="flex grow flex-col self-stretch bg-gray-200 md:flex-row">
             <ClientOnly>
-               <Sidebar />
+               <ApplicationSidebar />
             </ClientOnly>
             {children}
          </div>

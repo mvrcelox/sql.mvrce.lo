@@ -8,6 +8,8 @@ import { SIDEBAR_ENTRANCE_DURATION, SIDEBAR_EXIT_DURATION, SIDEBAR_SIZE } from "
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useState } from "react";
+import { useEvent } from "@/hooks/use-event";
+import { isFocusedOnElement } from "@/lib/is-focused-on-element";
 
 export const variants = {
    hidden: {
@@ -60,6 +62,19 @@ export default function MarketingAside() {
    const translateX = open ? 0 : -maxWidth;
 
    const [hover, setHover] = useState<string | null>(null);
+
+   useEvent(
+      "keydown",
+      (e: Event) => {
+         if (!(e instanceof KeyboardEvent)) return;
+         if (e.key === "s" && !e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
+            if (isFocusedOnElement()) return;
+            e.preventDefault();
+            toggleOpen?.(!open);
+         }
+      },
+      [open],
+   );
 
    return (
       <motion.aside

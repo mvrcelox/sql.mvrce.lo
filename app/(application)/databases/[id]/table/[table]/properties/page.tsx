@@ -10,8 +10,8 @@ import { loadSearchParams } from "../search-params";
 import { BadRequestException } from "@/infra/errors";
 
 interface Params {
-   databaseId: string;
-   tableName: string;
+   id: string;
+   table: string;
 }
 
 interface SearchParams {
@@ -24,7 +24,7 @@ interface SearchParams {
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
    const awaitedParams = await params;
    return {
-      title: awaitedParams.tableName,
+      title: awaitedParams.table,
    };
 }
 
@@ -33,7 +33,7 @@ export const maxDuration = 10;
 const getData = async (params: Params, searchParams: SearchParams) => {
    "use server";
 
-   const databaseId = params?.databaseId;
+   const databaseId = params?.id;
    if (!databaseId) throw new BadRequestException("Invalid database ID");
 
    const [found, err] = await findDatabase(databaseId);
@@ -78,7 +78,7 @@ const getData = async (params: Params, searchParams: SearchParams) => {
          RIGHT JOIN information_schema.columns c on pgd.objsubid = c.ordinal_position and c.table_schema = st.schemaname and c.table_name = st.relname
          WHERE c.table_schema = 'public' and c.table_name = $1
          ORDER BY ${sort} ${ordenation} LIMIT $2`,
-         [params.tableName, limit],
+         [params.table, limit],
       );
       if (!data) return;
       // const hiddenColumns: string[] = searchParams?.hide?.split(",") ?? [];

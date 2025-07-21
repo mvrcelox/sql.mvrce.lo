@@ -17,7 +17,7 @@ export default function TableHeader() {
       <LayoutGroup id="table-header">
          <div
             onMouseLeave={() => setHover(null)}
-            className="isolate flex h-[calc(2.5rem+1px)] items-center border-b bg-transparent p-1"
+            className="isolate flex h-[calc(2.5rem+1px)] items-center bg-transparent p-1"
          >
             <Link
                aria-selected={endWithProperties}
@@ -27,7 +27,7 @@ export default function TableHeader() {
                   size: "sm",
                   className: "hover:text-foreground group relative text-gray-600 aria-selected:text-gray-800",
                })}
-               href={`/database/${params.databaseId}/table/${params.tableName}/properties`}
+               href={`/databases/${params.id}/table/${params.table}/properties`}
             >
                <AnimatePresence>
                   {hover === 0 ? (

@@ -17,7 +17,7 @@ import {
    ZapOff,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import AddDatabaseDialog from "@/app/()/database/components/add-database-dialog";
+import AddDatabaseDialog from "@/components/add-database-dialog";
 import {
    DropdownMenu,
    DropdownMenuContent,
@@ -38,8 +38,10 @@ import { useDatabasesStore } from "@/stores/databases";
 import { isFocusedOnElement } from "@/lib/is-focused-on-element";
 import { useEvent } from "@/hooks/use-event";
 import { useStorage } from "@/hooks/use-storage";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function DatabasesSidebar() {
+   const isMobile = useIsMobile();
    const [search, setSearch] = useState<null | string>(null);
 
    const { find, connect } = useDatabasesStore();
@@ -100,20 +102,16 @@ export default function DatabasesSidebar() {
    const [hide, setHide] = useStorage<boolean>("sub-sidebar", false);
 
    useEvent(
-      "keypress",
+      "keydown",
       (e: Event) => {
          if (!(e instanceof KeyboardEvent)) return;
-         if (e.key === "s" && !e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
+         if (e.key.toLowerCase() === "s" && !e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
             if (isFocusedOnElement()) return;
             e.preventDefault();
-            setHide((prev) => !prev);
-
-            window.addEventListener("storage", (e) => {
-               console.log({ key: e.key, value: e.newValue, oldValue: e.oldValue });
-            });
+            setHide(!hide);
          }
       },
-      [setHide],
+      [hide],
    );
 
    if (typeof window === "undefined") return null;
@@ -122,15 +120,24 @@ export default function DatabasesSidebar() {
       <AnimatePresence>
          {hide ? null : (
             <motion.aside
-               initial={{ marginLeft: "-18rem" }}
-               animate={{ marginLeft: 0 }}
-               exit={{ marginLeft: "-18rem" }}
+               layout
+               initial={{ marginLeft: "-18rem", marginRight: "0rem", opacity: 0, filter: "blur(4px)" }}
+               animate={{
+                  marginLeft: "0",
+                  marginRight: isMobile ? "0rem" : "0.375rem",
+                  opacity: 1,
+                  filter: "blur(0px)",
+               }}
+               exit={{ marginLeft: "-18rem", marginRight: "0rem", opacity: 0, filter: "blur(4px)" }}
                transition={{
                   type: "spring",
                   stiffness: 500,
-                  damping: 40,
+                  damping: 37,
                }}
-               className="isolate flex w-full max-w-72 shrink-0 grow flex-col self-stretch overflow-hidden border-r bg-gray-50"
+               className={cn(
+                  "bg-background isolate z-50 flex w-full max-w-72 shrink-0 grow flex-col self-stretch overflow-hidden rounded-lg shadow-xs ring-1 ring-gray-950/10 md:my-1",
+                  isMobile ? "absolute top-11 bottom-1 left-1" : "",
+               )}
             >
                {/* <div className="h-11 self-stretch border-b border-b-border" /> */}
                {search === null ? (
@@ -314,8 +321,8 @@ function Item({ database, state }: { database: GetDatabasesReturn[number]; state
                {/* Tables */}
                <Expand.Root defaultOpen={false}>
                   <div
-                     aria-selected={pathname.startsWith(`/database/${database.id}/table`)}
-                     className="group aria-selected:!bg-primary/15 flex h-8 items-center gap-1 rounded-sm px-1 duration-150 hover:bg-gray-200 has-[button[aria-pressed='true']]:bg-gray-200"
+                     aria-selected={pathname.startsWith(`/databases/${database.id}/table`)}
+                     className="group aria-selected:!bg-primary/15 flex h-8 items-center gap-1 rounded px-1 duration-150 hover:bg-gray-200 has-[button[aria-pressed='true']]:bg-gray-200"
                   >
                      <Expand.Trigger
                         intent="ghost"
@@ -331,7 +338,7 @@ function Item({ database, state }: { database: GetDatabasesReturn[number]; state
                   <Expand.Content>
                      <ul role="list" className="flex grow flex-col self-stretch py-1 pl-4">
                         {found?.tables?.map((table) => {
-                           const href = `/database/${database.id}/table/${table.table_name}`;
+                           const href = `/databases/${database.id}/table/${table.table_name}`;
                            return (
                               <li key={table?.table_name}>
                                  <Link
@@ -371,7 +378,7 @@ function Item({ database, state }: { database: GetDatabasesReturn[number]; state
                         {found?.views?.map((view) => (
                            <li key={view?.table_name}>
                               <Link
-                                 href={`/database/${database.id}/view/${view.table_name}`}
+                                 href={`/databases/${database.id}/view/${view.table_name}`}
                                  className={buttonVariants({
                                     intent: "ghost",
                                     size: "xs",
@@ -404,7 +411,7 @@ function Item({ database, state }: { database: GetDatabasesReturn[number]; state
                            <li key={index.indexname}>
                               <Link
                                  href="#"
-                                 // href={`/database/${database.id}/indexes/${index.indexname}`}
+                                 // href={`/databases/${database.id}/indexes/${index.indexname}`}
                                  className={buttonVariants({
                                     intent: "ghost",
                                     size: "xs",
@@ -437,7 +444,7 @@ function Item({ database, state }: { database: GetDatabasesReturn[number]; state
                            <li key={sequence.sequencename}>
                               <Link
                                  href="#"
-                                 // href={`/database/${database.id}/sequences/${sequence.sequencename}`}
+                                 // href={`/databases/${database.id}/sequences/${sequence.sequencename}`}
                                  className={buttonVariants({
                                     intent: "ghost",
                                     size: "xs",

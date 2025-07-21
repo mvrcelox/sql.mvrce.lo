@@ -5,7 +5,6 @@ import { createPSQLDatabase } from "@/lib/database-factory";
 import { DataTable } from "@/components/data-table";
 import { Metadata } from "next";
 import { loadSearchParams } from "./search-params";
-import to from "@/helpers/to";
 import { findDatabase } from "@/controllers/database.controller";
 
 interface Params {
@@ -30,14 +29,12 @@ export const maxDuration = 10;
 const getData = async (params: Params, searchParams: SearchParams) => {
    "use server";
 
-   if (isNaN(Number(params?.id))) throw new Error("Invalid database");
+   const response = await findDatabase(params?.id);
+   if (!response.success) throw response.error;
 
-   const { data, error } = await to(findDatabase(params?.id));
-   if (error) throw error;
+   if (!response.data) notFound();
 
-   if (!data || data) notFound();
-
-   const client = createPSQLDatabase(data);
+   const client = createPSQLDatabase(response.data);
 
    try {
       await client?.connect();
@@ -86,7 +83,7 @@ export default async function Page({
    const rows = data?.rows ?? [];
 
    return (
-      <main className="flex flex-initial grow flex-col self-stretch overflow-hidden bg-gray-100">
+      <main className="flex flex-initial grow flex-col self-stretch overflow-hidden">
          <DataTable count={count} fields={fields} rows={rows} />
       </main>
    );

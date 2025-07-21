@@ -20,7 +20,7 @@ import { CSSProperties, useMemo, useState } from "react";
 
 import { parseAsArrayOf, parseAsString, useQueryState } from "nuqs";
 import { GetTableReturn } from "@/lib/database-factory";
-import { DatatypeToJavascript } from "@/constants/converters";
+import { AvailableSQLTypes } from "@/constants/converters";
 import Cell from "@/components/data-table/cell";
 
 export interface GenericFieldProps {
@@ -100,7 +100,7 @@ export function DataTable({ fields = [], rows = [], editable = true }: DataTable
                            readOnly={!editable}
                            name={field.name}
                            position={field.position}
-                           type={DatatypeToJavascript?.[field.type as keyof typeof DatatypeToJavascript] ?? "unknown"}
+                           type={field.type as AvailableSQLTypes}
                            nullable={field.nullable == "YES"}
                            fallback={field.default}
                            defaultValue={row.getValue(column.id)}

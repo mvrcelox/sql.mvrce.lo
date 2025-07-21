@@ -42,7 +42,7 @@ export default function ScriptsProvider({ children }: React.PropsWithChildren) {
    };
 
    const clearScripts = () => {
-      if (!databaseRef.current) toast.error("Database wasn't selected 1.");
+      if (!databaseRef.current) toast.error("Database wasn't selected.");
 
       const index = databases?.findIndex((x) => x.databaseId === databaseRef.current);
       if (index === -1) toast.error("Database not found or doesn't exists 2");

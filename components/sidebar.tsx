@@ -51,7 +51,7 @@ function Sidebar() {
             ease: "circInOut",
             duration: sidebarAnimationDuration,
          }}
-         className="sticky top-0 z-[3] flex w-[calc(2.75rem+1px)] flex-col self-stretch border-r bg-gray-100 md:w-[calc(3rem+1px)]"
+         className="sticky top-0 z-[3] flex w-[calc(2.75rem+1px)] flex-col self-stretch md:w-[calc(3rem+1px)]"
       >
          {/* <div className="bg-background grid max-h-[calc(2.5rem+1px)] place-items-center border-b py-2">
             <Logo className="size-6" />
@@ -76,7 +76,7 @@ function Sidebar() {
                                           setHide(!hide);
                                        }}
                                        className={cn([
-                                          "group relative isolation-auto grid h-10 place-items-center rounded-md text-gray-600 hover:text-gray-800",
+                                          "group aria-selected:text-primary aria-selected:hover:text-primary-hover relative isolation-auto grid aspect-square place-items-center rounded-md text-gray-600 hover:text-gray-800",
                                        ])}
                                     >
                                        <AnimatePresence>
@@ -86,7 +86,7 @@ function Sidebar() {
                                                 animate={{ opacity: 1 }}
                                                 exit={{ opacity: 0 }}
                                                 layoutId="sidebar-hover-selector"
-                                                className="bg-background pointer-events-none absolute inset-0 -z-10 size-full rounded-md border shadow-xs"
+                                                className="bg-primary/20 pointer-events-none absolute inset-0 -z-10 size-full rounded-md shadow-xs"
                                                 transition={{ type: "spring", duration: 0.15, bounce: 0.2 }}
                                              />
                                           )}

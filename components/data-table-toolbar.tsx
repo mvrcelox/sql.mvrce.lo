@@ -36,6 +36,7 @@ import { useScripts } from "./scripts";
 import debounce from "debounce";
 import { cn } from "@/lib/utils";
 import { isFocusedOnElement } from "@/lib/is-focused-on-element";
+import { useEvent } from "@/hooks/use-event";
 
 export interface DataTableToolbarProps {
    type?: "columns" | "rows";
@@ -43,7 +44,7 @@ export interface DataTableToolbarProps {
 
 export default function DataTableToolbar({ type = "rows" }: DataTableToolbarProps) {
    return (
-      <div className="z-10 -mt-px flex h-[calc(2.5rem+1px)] items-center gap-1 self-stretch border-t bg-gray-100 p-1">
+      <div className="z-10 -mt-px flex h-[calc(2.5rem+1px)] items-center gap-1 self-stretch p-1">
          <RefreshButton />
 
          <Separator orientation="vertical" className="h-4 self-center" />
@@ -66,7 +67,12 @@ function RefreshButton() {
       <TooltipProvider disableHoverableContent delayDuration={0}>
          <Tooltip>
             <TooltipTrigger asChild>
-               <Button intent="ghost" size="sm" className="gap-2 px-2" onClick={() => router.refresh()}>
+               <Button
+                  intent="ghost"
+                  size="sm"
+                  className="hover:bg-background gap-2 px-2"
+                  onClick={() => router.refresh()}
+               >
                   <RefreshCw className="size-4 shrink-0" />
                   <span className="hidden md:inline">Refresh</span>
                </Button>
@@ -82,14 +88,7 @@ function SaveChangesButton() {
 
    useEffect(() => {
       function save(e: KeyboardEvent) {
-         console.log({
-            key: e.key,
-            shiftKey: e.shiftKey,
-            ctrlKey: e.ctrlKey,
-            altKey: e.altKey,
-         });
-
-         if (e.key.toLowerCase() == "s" && e.ctrlKey && e.shiftKey && !e.altKey) {
+         if (e.key.toLowerCase() == "s" && e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
             if (isFocusedOnElement()) return;
             e.preventDefault();
             show();
@@ -100,6 +99,17 @@ function SaveChangesButton() {
 
       return () => document.removeEventListener("keypress", save);
    }, [scripts, show]);
+
+   useEvent("keydown", (e) => {
+      if (!(e instanceof KeyboardEvent)) return;
+      if (isFocusedOnElement()) return;
+
+      if (e.key.toLowerCase() !== "s" || !e.ctrlKey || e.shiftKey || e.altKey || e.metaKey) return;
+      e.preventDefault();
+      show();
+
+      return () => {};
+   });
 
    return (
       <TooltipProvider disableHoverableContent delayDuration={0}>
@@ -118,9 +128,8 @@ function SaveChangesButton() {
             </TooltipTrigger>
             <TooltipContent>
                Save changes
-               <div className="mt-1 space-x-0.5 text-xs">
+               <div className="mt-1 ml-1 inline-block space-x-0.5 text-xs">
                   <kbd className="font-geist-sans rounded-sm bg-gray-700 px-1 text-gray-100">Ctrl</kbd>
-                  <kbd className="font-geist-sans rounded-sm bg-gray-700 px-1 text-gray-100">Shift</kbd>
                   <kbd className="font-geist-sans rounded-sm bg-gray-700 px-1 text-gray-100">S</kbd>
                </div>
             </TooltipContent>
@@ -169,6 +178,8 @@ function HiddenColumnsButton() {
    const { data, isLoading } = useQuery({
       queryKey: ["get-properties", params.databaseId, params.tableName],
       queryFn: async () => {
+         if (!params.databaseId || !params.tableName) return [];
+
          const [properties, err] = await getDatabaseProperties({
             databaseId: params.databaseId,
             tableName: params.tableName,
@@ -306,6 +317,7 @@ function ExportButton({ type }: ExportButtonProps) {
             tableName: params.tableName,
          });
 
+         console.error();
          if (err) throw err;
 
          return properties;

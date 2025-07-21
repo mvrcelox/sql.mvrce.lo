@@ -19,11 +19,11 @@ import { useParams } from "next/navigation";
 import useEffectAfterMount from "@/hooks/use-effect-after-mount";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "sonner";
+import { AvailableSQLTypes } from "@/constants/converters";
 
-type Type = "date" | "boolean" | "number" | "int" | "float" | "string" | "array" | "json" | "null" | "unknown";
+type Type = AvailableSQLTypes;
 
 interface FormatReturn {
-   type: Type;
    data: string | null;
    className?: string;
 }
@@ -31,29 +31,27 @@ interface FormatReturn {
 function format<T>(cell: T): FormatReturn {
    switch (typeof cell) {
       case "bigint":
-         return { type: "number", data: Number(cell).toString(), className: "text-end" };
+         return { data: Number(cell).toString(), className: "text-end" };
       case "boolean":
          // const Icon = cell ? Check : X;
          return {
-            type: "boolean",
             data: cell ? "true" : "false",
          };
 
       case "number":
-         return { type: "number", data: cell?.toString() };
+         return { data: cell?.toString() };
       case "string":
-         return { type: "string", data: cell };
+         return { data: cell };
       case "object": {
-         if (cell === null) return { type: "null", className: "text-center text-gray-400", data: null };
-         if (Array.isArray(cell)) return { type: "array", data: JSON.stringify(cell) };
-         if (cell instanceof Date) return { type: "date", data: cell?.toISOString() };
-         return { type: "json", data: JSON.stringify(cell) };
+         if (cell === null) return { className: "text-center text-gray-400", data: null };
+         if (Array.isArray(cell)) return { data: JSON.stringify(cell) };
+         if (cell instanceof Date) return { data: cell?.toISOString() };
+         return { data: JSON.stringify(cell) };
       }
       case "undefined":
-         return { type: "null", className: "text-center text-gray-400", data: null };
+         return { className: "text-center text-gray-400", data: null };
       default:
          return {
-            type: "null",
             className: "text-center text-gray-400",
             data: null,
          };
@@ -77,7 +75,10 @@ interface CellProps {
 export default function Cell({ pkName, pkValue, name, type, nullable, defaultValue, readOnly }: CellProps) {
    const isDirty = useRef<boolean>(false);
    const inputRef = useRef<HTMLInputElement | null>(null);
-   const params = useParams<{ databaseId: string; tableName: string }>();
+   const params = useParams<{ id: string; table: string }>();
+
+   const databaseId = params.id;
+   const tableName = params.table;
 
    const scriptId = useRef<string | undefined>(undefined);
    const { setDatabase, setScript, removeScript } = useScripts();
@@ -179,19 +180,53 @@ export default function Cell({ pkName, pkValue, name, type, nullable, defaultVal
       let sql = "";
 
       switch (type) {
-         case "date": {
+         case "date":
             const date = new Date(current ?? "");
             if (isNaN(date.getTime())) return;
             sql = `'${date.toISOString()}'`;
             break;
-         }
-         case "number": {
+         case "timestamp":
+         case "timestamptz":
+            const timestamp = new Date(current ?? "");
+            if (isNaN(timestamp.getTime())) return;
+            sql = `'${timestamp.toISOString()}'`;
+            break;
+         case "_int2":
+         case "_int4":
+            try {
+               const arr = JSON.parse(current ?? "[]");
+               if (!Array.isArray(arr)) return;
+               if (arr.some((x) => typeof x !== "number")) return;
+               sql = `'${JSON.stringify(arr)}'`;
+            } catch {
+               return;
+            }
+            break;
+         case "_text":
+            try {
+               const arr = JSON.parse(current ?? "[]");
+               if (!Array.isArray(arr)) return;
+               if (arr.some((x) => typeof x !== "string")) return;
+               sql = `'${JSON.stringify(arr)}'`;
+            } catch {
+               return;
+            }
+         case "int2":
+         case "int4":
+         case "int8":
             const num = Number(current);
             if (isNaN(num)) return;
-            sql = `${num}`;
+            sql = num.toFixed(0);
             break;
-         }
-         case "boolean": {
+         case "numeric":
+         case "float4":
+         case "float8":
+            const float = Number(current);
+            if (isNaN(float)) return;
+            sql = float.toFixed(0);
+            break;
+
+         case "bool": {
             if (!["true", "false"].includes(current ?? "")) return;
             sql = `${current}`;
             break;
@@ -205,27 +240,22 @@ export default function Cell({ pkName, pkValue, name, type, nullable, defaultVal
             }
             break;
          }
-         case "array": {
-            try {
-               const parsed = JSON.parse(current ?? "");
-               sql = `'${JSON.stringify(parsed)}'`;
-            } catch {
-               return;
-            }
-            break;
-         }
-         case "string": {
+         case "uuid":
+         case "text":
+         case "varchar": {
             sql = `'${current ?? ""}'`;
             break;
          }
          default:
             break;
       }
-      return `UPDATE ${params.tableName} SET ${name} = ${sql} WHERE ${pkName} = '${pkValue}';`;
+      return `UPDATE ${tableName} SET ${name} = ${sql} WHERE ${pkName} = '${pkValue}';`;
    }
 
    function detectChange(current: string | null) {
       if (!isDirty.current) return;
+      isDirty.current = false;
+
       if (current === history[index]) return;
 
       if (current === history[0]) {
@@ -234,60 +264,15 @@ export default function Cell({ pkName, pkValue, name, type, nullable, defaultVal
          return;
       }
 
-      let sql = "";
-      switch (type) {
-         case "date": {
-            const date = new Date(current as string);
-            if (isNaN(date.getTime())) {
-               current = value;
-            }
-            sql = `'${date.toISOString()}'`;
-            break;
-         }
-         case "number": {
-            const num = Number(current);
-            if (isNaN(num)) {
-               current = value;
-            }
-            sql = `${num}`;
-            break;
-         }
-         case "boolean": {
-            if (!["true", "false"].includes(current as string)) {
-               current = value;
-            }
-            sql = `${current}`;
-            break;
-         }
-         case "json": {
-            try {
-               JSON.parse(current as string);
-               sql = `'${current}'`;
-            } catch {
-               current = value;
-            }
-            break;
-         }
-         case "array": {
-            try {
-               JSON.parse(current as string);
-               sql = `'${current}'`;
-            } catch {
-               current = value;
-            }
-            break;
-         }
-         case "string":
-            sql = `'${current}'`;
-            break;
-         case "null":
-            sql = "NULL";
-            break;
+      const script = getSQL(current);
+      if (!script) {
+         toast.error("Invalid value");
+         if (inputRef.current) inputRef.current.value = value ?? "";
+         return;
       }
 
       setValue(current);
-      setDatabase(params.databaseId);
-      const script = `UPDATE ${params.tableName} SET ${name} = ${sql} WHERE ${pkName} = '${pkValue}';`;
+      setDatabase(databaseId);
 
       function callback(method: "clear" | "run") {
          scriptId.current = undefined;
@@ -313,7 +298,9 @@ export default function Cell({ pkName, pkValue, name, type, nullable, defaultVal
    return (
       <>
          <ContextMenu>
-            <span className={cn("block w-full px-2 whitespace-nowrap", !readOnly && "invisible")}>{value}</span>
+            <span className={cn("block w-full px-2 leading-7 whitespace-nowrap", !readOnly && "invisible")}>
+               {value}
+            </span>
             {readOnly ? null : (
                <ContextMenuTrigger asChild>
                   <Input
@@ -347,6 +334,7 @@ export default function Cell({ pkName, pkValue, name, type, nullable, defaultVal
                            redo();
                         }
                         if (e.key === "Escape") {
+                           isDirty.current = false;
                            e.currentTarget.value = value ?? "";
                            e.currentTarget.blur();
                         }
@@ -443,7 +431,7 @@ export default function Cell({ pkName, pkValue, name, type, nullable, defaultVal
                   <CircleDashed className="size-4 shrink-0" />
                   Set null
                </ContextMenuItem>
-               {type === "boolean" ? (
+               {type === "bool" ? (
                   <ContextMenuItem
                      disabled={value === null}
                      onSelect={() => {

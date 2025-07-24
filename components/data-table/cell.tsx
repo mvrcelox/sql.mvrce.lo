@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils";
 import { CircleCheck, CircleDashed, CircleSlash, Copy, Redo, RotateCcw, Search, Undo } from "lucide-react";
 
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 
 import {
@@ -16,8 +16,7 @@ import {
 } from "@/components/ui/context-menu";
 import { useScripts } from "../scripts";
 import { useParams } from "next/navigation";
-import useEffectAfterMount from "@/hooks/use-effect-after-mount";
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipRoot, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { AvailableSQLTypes } from "@/constants/converters";
 
@@ -176,81 +175,84 @@ export default function Cell({ pkName, pkValue, name, type, nullable, defaultVal
       setHistory((x) => [value ?? x[0]]);
    };
 
-   function getSQL(current: string | null) {
-      let sql = "";
+   const getSQL = useCallback(
+      function (current: string | null) {
+         let sql = "";
 
-      switch (type) {
-         case "date":
-            const date = new Date(current ?? "");
-            if (isNaN(date.getTime())) return;
-            sql = `'${date.toISOString()}'`;
-            break;
-         case "timestamp":
-         case "timestamptz":
-            const timestamp = new Date(current ?? "");
-            if (isNaN(timestamp.getTime())) return;
-            sql = `'${timestamp.toISOString()}'`;
-            break;
-         case "_int2":
-         case "_int4":
-            try {
-               const arr = JSON.parse(current ?? "[]");
-               if (!Array.isArray(arr)) return;
-               if (arr.some((x) => typeof x !== "number")) return;
-               sql = `'${JSON.stringify(arr)}'`;
-            } catch {
-               return;
-            }
-            break;
-         case "_text":
-            try {
-               const arr = JSON.parse(current ?? "[]");
-               if (!Array.isArray(arr)) return;
-               if (arr.some((x) => typeof x !== "string")) return;
-               sql = `'${JSON.stringify(arr)}'`;
-            } catch {
-               return;
-            }
-         case "int2":
-         case "int4":
-         case "int8":
-            const num = Number(current);
-            if (isNaN(num)) return;
-            sql = num.toFixed(0);
-            break;
-         case "numeric":
-         case "float4":
-         case "float8":
-            const float = Number(current);
-            if (isNaN(float)) return;
-            sql = float.toFixed(0);
-            break;
+         switch (type) {
+            case "date":
+               const date = new Date(current ?? "");
+               if (isNaN(date.getTime())) return;
+               sql = `'${date.toISOString()}'`;
+               break;
+            case "timestamp":
+            case "timestamptz":
+               const timestamp = new Date(current ?? "");
+               if (isNaN(timestamp.getTime())) return;
+               sql = `'${timestamp.toISOString()}'`;
+               break;
+            case "_int2":
+            case "_int4":
+               try {
+                  const arr = JSON.parse(current ?? "[]");
+                  if (!Array.isArray(arr)) return;
+                  if (arr.some((x) => typeof x !== "number")) return;
+                  sql = `'${JSON.stringify(arr)}'`;
+               } catch {
+                  return;
+               }
+               break;
+            case "_text":
+               try {
+                  const arr = JSON.parse(current ?? "[]");
+                  if (!Array.isArray(arr)) return;
+                  if (arr.some((x) => typeof x !== "string")) return;
+                  sql = `'${JSON.stringify(arr)}'`;
+               } catch {
+                  return;
+               }
+            case "int2":
+            case "int4":
+            case "int8":
+               const num = Number(current);
+               if (isNaN(num)) return;
+               sql = num.toFixed(0);
+               break;
+            case "numeric":
+            case "float4":
+            case "float8":
+               const float = Number(current);
+               if (isNaN(float)) return;
+               sql = float.toFixed(0);
+               break;
 
-         case "bool": {
-            if (!["true", "false"].includes(current ?? "")) return;
-            sql = `${current}`;
-            break;
-         }
-         case "json": {
-            try {
-               const parsed = JSON.parse(current ?? "");
-               sql = `'${JSON.stringify(parsed)}'`;
-            } catch {
-               return;
+            case "bool": {
+               if (!["true", "false"].includes(current ?? "")) return;
+               sql = `${current}`;
+               break;
             }
-            break;
+            case "json": {
+               try {
+                  const parsed = JSON.parse(current ?? "");
+                  sql = `'${JSON.stringify(parsed)}'`;
+               } catch {
+                  return;
+               }
+               break;
+            }
+            case "uuid":
+            case "text":
+            case "varchar": {
+               sql = `'${current ?? ""}'`;
+               break;
+            }
+            default:
+               break;
          }
-         case "uuid":
-         case "text":
-         case "varchar": {
-            sql = `'${current ?? ""}'`;
-            break;
-         }
-         default:
-            break;
-      }
-      return `UPDATE ${tableName} SET ${name} = ${sql} WHERE ${pkName} = '${pkValue}';`;
-   }
+         return `UPDATE ${tableName} SET ${name} = ${sql} WHERE ${pkName} = '${pkValue}';`;
+      },
+      [type, name, pkName, pkValue, tableName],
+   );
 
    function detectChange(current: string | null) {
       if (!isDirty.current) return;
@@ -290,15 +292,21 @@ export default function Cell({ pkName, pkValue, name, type, nullable, defaultVal
       scriptId.current = setScript(script, { id: scriptId.current, callback });
    }
 
-   useEffectAfterMount(() => {
-      if (!inputRef.current) return;
-      inputRef.current.value = value ?? "";
-   }, [value]);
+   // useEffectAfterMount(() => {
+   //    if (!inputRef.current) return;
+   //    inputRef.current.value = value ?? "";
+   // }, [value]);
 
    return (
       <>
          <ContextMenu>
-            <span className={cn("block w-full px-2 leading-7 whitespace-nowrap", !readOnly && "invisible")}>
+            <span
+               className={cn(
+                  "block w-full px-2 leading-7 whitespace-nowrap",
+                  type === "numeric" && "text-end",
+                  !readOnly && "invisible",
+               )}
+            >
                {value}
             </span>
             {readOnly ? null : (
@@ -345,6 +353,7 @@ export default function Cell({ pkName, pkValue, name, type, nullable, defaultVal
                      className={cn(
                         "data-[changed='true']:!bg-primary/10 caret-foreground selection:bg-primary/20 absolute inset-0 h-full w-full rounded-none px-2 overflow-ellipsis group-[data-pinned]:z-[1]",
                         // focus && "bg-background",
+                        type === "numeric" && "text-end",
                         value === null &&
                            "placeholder-shown:not-focus:text-center placeholder-shown:focus:placeholder:text-transparent",
                      )}
@@ -462,12 +471,12 @@ function ContextMenuItemWithTooltip({
 }: React.ComponentPropsWithoutRef<typeof ContextMenuItem> & { tooltip?: string | React.ReactNode }) {
    return (
       <TooltipProvider>
-         <Tooltip>
+         <TooltipRoot>
             <TooltipTrigger asChild>
                <ContextMenuItem {...props}>{children}</ContextMenuItem>
             </TooltipTrigger>
             <TooltipContent>{tooltip}</TooltipContent>
-         </Tooltip>
+         </TooltipRoot>
       </TooltipProvider>
    );
 }

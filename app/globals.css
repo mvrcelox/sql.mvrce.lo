@@ -86,7 +86,7 @@
       --foreground: oklch(26.9% 0 0);
 
       --gray-50: oklch(98.5% 0 0);
-      --gray-100: oklch(97% 0 0);
+      --gray-100: oklch(96% 0 0);
       --gray-200: oklch(92.2% 0 0);
       --gray-300: oklch(87% 0 0);
       --gray-400: oklch(70.8% 0 0);
@@ -119,7 +119,7 @@
       --gray-600: oklch(70.8% 0 0);
       --gray-700: oklch(87% 0 0);
       --gray-800: oklch(92.2% 0 0);
-      --gray-900: oklch(97% 0 0);
+      --gray-900: oklch(96% 0 0);
       --gray-950: oklch(98.5% 0 0);
 
       --gray-50: #0d0d0d;

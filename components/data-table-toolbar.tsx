@@ -23,9 +23,9 @@ import {
    DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { parseAsArrayOf, parseAsInteger, parseAsString, useQueryState } from "nuqs";
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useRef, useState, useTransition } from "react";
 import { Input } from "./ui/input";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { TooltipRoot, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Separator } from "./ui/separator";
 import Button from "./ui/button";
 import { getDatabaseProperties } from "@/models/databases";
@@ -37,6 +37,7 @@ import debounce from "debounce";
 import { cn } from "@/lib/utils";
 import { isFocusedOnElement } from "@/lib/is-focused-on-element";
 import { useEvent } from "@/hooks/use-event";
+import { animate, motion } from "motion/react";
 
 export interface DataTableToolbarProps {
    type?: "columns" | "rows";
@@ -62,23 +63,61 @@ export default function DataTableToolbar({ type = "rows" }: DataTableToolbarProp
 }
 
 function RefreshButton() {
+   const [disabled, setDisabled] = useState<boolean>(false);
+   const icon = useRef<HTMLSpanElement | null>(null);
    const router = useRouter();
+
+   async function handle() {
+      if (disabled) return;
+      router.refresh();
+
+      if (!icon.current) return;
+      setDisabled(true);
+
+      try {
+         await animate(icon.current, { rotate: [0, 360] }, { type: "spring", stiffness: 125, damping: 20 });
+      } finally {
+         setDisabled(false);
+      }
+   }
+
+   useEvent(
+      "keydown",
+      ((e: KeyboardEvent) => {
+         if (!(e instanceof KeyboardEvent) || isFocusedOnElement()) return;
+         if (e.key.toLowerCase() === "r" && e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
+            e.preventDefault();
+            handle();
+         }
+      }) as (e: Event) => void,
+      [handle],
+   );
+
    return (
       <TooltipProvider disableHoverableContent delayDuration={0}>
-         <Tooltip>
+         <TooltipRoot>
             <TooltipTrigger asChild>
                <Button
+                  disabled={disabled}
                   intent="ghost"
                   size="sm"
-                  className="hover:bg-background gap-2 px-2"
-                  onClick={() => router.refresh()}
+                  className="max-xs:p-0 max-xs:size-8 shrink-0 gap-2"
+                  onClick={handle}
                >
-                  <RefreshCw className="size-4 shrink-0" />
+                  <motion.span className="size-4 shrink-0" ref={icon}>
+                     <RefreshCw className="size-full" />
+                  </motion.span>
                   <span className="hidden md:inline">Refresh</span>
                </Button>
             </TooltipTrigger>
-            <TooltipContent>Refresh the rows</TooltipContent>
-         </Tooltip>
+            <TooltipContent>
+               <span>Refresh the rows</span>
+               <div data-slot="kbd-group" className="-mr-1 ml-1 hidden space-x-0.5 text-xs md:inline-block">
+                  <kbd className="font-geist-sans rounded-sm bg-gray-700 px-1.25 py-px text-gray-100">Ctrl</kbd>
+                  <kbd className="font-geist-sans rounded-sm bg-gray-700 px-1.25 py-px text-gray-100">R</kbd>
+               </div>
+            </TooltipContent>
+         </TooltipRoot>
       </TooltipProvider>
    );
 }
@@ -86,54 +125,47 @@ function RefreshButton() {
 function SaveChangesButton() {
    const { scripts, show } = useScripts();
 
-   useEffect(() => {
-      function save(e: KeyboardEvent) {
-         if (e.key.toLowerCase() == "s" && e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
-            if (isFocusedOnElement()) return;
-            e.preventDefault();
-            show();
-         }
-      }
-
-      if (scripts.length) document.addEventListener("keypress", save);
-
-      return () => document.removeEventListener("keypress", save);
-   }, [scripts, show]);
-
-   useEvent("keydown", (e) => {
-      if (!(e instanceof KeyboardEvent)) return;
-      if (isFocusedOnElement()) return;
-
-      if (e.key.toLowerCase() !== "s" || !e.ctrlKey || e.shiftKey || e.altKey || e.metaKey) return;
-      e.preventDefault();
+   function handle() {
+      if (!scripts.length) return;
       show();
+   }
 
-      return () => {};
-   });
+   useEvent(
+      "keydown",
+      ((e: KeyboardEvent) => {
+         if (!(e instanceof KeyboardEvent) || isFocusedOnElement()) return;
+         if (e.key.toLowerCase() === "s" && e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey) {
+            e.preventDefault();
+            handle();
+         }
+      }) as (e: Event) => void,
+      [handle],
+   );
 
    return (
       <TooltipProvider disableHoverableContent delayDuration={0}>
-         <Tooltip>
+         <TooltipRoot>
             <TooltipTrigger asChild>
                <Button
-                  intent="ghost"
                   disabled={!scripts.length}
+                  intent="ghost"
                   size="sm"
-                  className="group gap-2"
-                  onClick={() => show()}
+                  className="group max-xs:size-8 max-xs:p-0 shrink-0 gap-2"
+                  onClick={handle}
                >
-                  <CheckCircle2 className="size-4 shrink-0 fill-green-50 text-emerald-600 group-disabled:fill-gray-200 group-disabled:text-[inherit] dark:fill-green-950 dark:text-emerald-600" />
-                  <span>Save</span>
+                  <CheckCircle2 className="size-4 shrink-0 text-emerald-600 group-disabled:text-[inherit] dark:text-emerald-600" />
+                  <span className="xs:inline hidden">Save</span>
                </Button>
             </TooltipTrigger>
             <TooltipContent>
-               Save changes
-               <div className="mt-1 ml-1 inline-block space-x-0.5 text-xs">
-                  <kbd className="font-geist-sans rounded-sm bg-gray-700 px-1 text-gray-100">Ctrl</kbd>
-                  <kbd className="font-geist-sans rounded-sm bg-gray-700 px-1 text-gray-100">S</kbd>
+               <span>Save changes</span>
+               <div data-slot="kbd-group" className="-mr-1 ml-1 hidden space-x-0.5 text-xs md:inline-block">
+                  <kbd className="font-geist-sans rounded-sm bg-gray-700 px-1.25 py-px text-gray-100">Ctrl</kbd>
+                  <kbd className="font-geist-sans rounded-sm bg-gray-700 px-1.25 py-px text-gray-100">Shift</kbd>
+                  <kbd className="font-geist-sans rounded-sm bg-gray-700 px-1.25 py-px text-gray-100">S</kbd>
                </div>
             </TooltipContent>
-         </Tooltip>
+         </TooltipRoot>
       </TooltipProvider>
    );
 }
@@ -142,21 +174,21 @@ function DiscardChangesButton() {
    const { scripts, clearScripts } = useScripts();
    return (
       <TooltipProvider disableHoverableContent delayDuration={0}>
-         <Tooltip>
+         <TooltipRoot>
             <TooltipTrigger asChild>
                <Button
                   intent="ghost"
                   disabled={!scripts.length}
                   size="sm"
-                  className="group gap-2"
+                  className="group max-xs:size-8 max-xs:p-0 shrink-0 gap-2"
                   onClick={() => clearScripts()}
                >
-                  <XCircle className="size-4 shrink-0 fill-red-50 text-red-600 group-disabled:fill-gray-200 group-disabled:text-[inherit] dark:fill-pink-950 dark:text-rose-600" />
-                  <span>Discard</span>
+                  <XCircle className="size-4 shrink-0 text-red-600 group-disabled:text-[inherit] dark:text-rose-600" />
+                  <span className="xs:inline hidden">Discard</span>
                </Button>
             </TooltipTrigger>
             <TooltipContent>Discard changes</TooltipContent>
-         </Tooltip>
+         </TooltipRoot>
       </TooltipProvider>
    );
 }
@@ -210,16 +242,16 @@ function HiddenColumnsButton() {
          }}
       >
          <TooltipProvider disableHoverableContent delayDuration={0}>
-            <Tooltip>
+            <TooltipRoot>
                <TooltipTrigger asChild>
                   <DropdownMenuTrigger asChild>
-                     <Button intent="ghost" size="icon" className="size-8 aria-expanded:bg-gray-200">
+                     <Button intent="ghost" size="icon" className="size-8 shrink-0 aria-expanded:bg-gray-200">
                         <Eye className="size-4 shrink-0" />
                      </Button>
                   </DropdownMenuTrigger>
                </TooltipTrigger>
                <TooltipContent>Hidden columns</TooltipContent>
-            </Tooltip>
+            </TooltipRoot>
          </TooltipProvider>
          <DropdownMenuContent className="max-h-[70svh] min-w-52">
             <div className="flex items-center gap-1">
@@ -380,14 +412,14 @@ function ExportButton({ type }: ExportButtonProps) {
    return (
       <DropdownMenu>
          <TooltipProvider disableHoverableContent delayDuration={0}>
-            <Tooltip>
+            <TooltipRoot>
                <TooltipTrigger asChild>
                   <DropdownMenuTrigger asChild>
                      <Button
                         disabled={isExportingToTypescript}
                         intent="ghost"
                         size="icon"
-                        className="size-8 aria-expanded:bg-gray-200"
+                        className="size-8 shrink-0 aria-expanded:bg-gray-200"
                      >
                         {isExportingToTypescript || isExportingToZodObject ? (
                            <Loader2 className="size-4 shrink-0 animate-spin" />
@@ -398,7 +430,7 @@ function ExportButton({ type }: ExportButtonProps) {
                   </DropdownMenuTrigger>
                </TooltipTrigger>
                <TooltipContent>Export table</TooltipContent>
-            </Tooltip>
+            </TooltipRoot>
          </TooltipProvider>
          <DropdownMenuContent className="relative">
             {/* <Button intent="ghost" size="icon" className="absolute top-1 right-1 size-6">
@@ -484,7 +516,7 @@ function LimitInput() {
 
    return (
       <TooltipProvider disableHoverableContent delayDuration={0}>
-         <Tooltip>
+         <TooltipRoot>
             <TooltipTrigger asChild>
                <div className="relative max-w-20">
                   <Input
@@ -493,7 +525,7 @@ function LimitInput() {
                      size="sm"
                      aria-label="numeric"
                      inputMode="numeric"
-                     pattern="[0-9]*"
+                     pattern="[0-9]+"
                      className="shrink-0"
                      defaultValue={limit}
                      onKeyDown={(e) => {
@@ -506,19 +538,12 @@ function LimitInput() {
                         }
                      }}
                      onBlur={(e) => {
-                        let value = Number(e.currentTarget.value);
+                        if (!e.currentTarget.value) return (e.currentTarget.value = `${limit}`);
+                        const value = Math.floor(Number(e.currentTarget.value));
 
-                        {
-                           const isValid = !!isFinite(value);
-                           if (!isValid) return (e.currentTarget.value = `${limit}`);
-                        }
-
-                        value = parseInt(e.currentTarget.value);
-
-                        {
-                           const isDifferent = value != limit;
-                           if (!isDifferent) return (e.currentTarget.value = `${value}`);
-                        }
+                        const isValid = !!isFinite(value);
+                        if (!isValid) return (e.currentTarget.value = `${limit}`);
+                        if (value === limit) return (e.currentTarget.value = `${limit}`);
 
                         setLimit(value);
                         e.currentTarget.value = `${value}`;
@@ -530,7 +555,7 @@ function LimitInput() {
                </div>
             </TooltipTrigger>
             <TooltipContent>Limit rows</TooltipContent>
-         </Tooltip>
+         </TooltipRoot>
       </TooltipProvider>
    );
 }

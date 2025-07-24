@@ -16,7 +16,7 @@ import {
    Zap,
    ZapOff,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import AddDatabaseDialog from "@/components/add-database-dialog";
 import {
    DropdownMenu,
@@ -30,7 +30,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getDatabases, GetDatabasesReturn } from "@/models/databases";
 import { toast } from "sonner";
 import Link, { useLinkStatus } from "next/link";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion, Variants } from "motion/react";
 import Expand from "@/components/ui/expand";
 import { cn } from "@/lib/utils";
 import { useParams, usePathname } from "next/navigation";
@@ -114,6 +114,34 @@ export default function DatabasesSidebar() {
       [hide],
    );
 
+   const isReduced = useReducedMotion();
+   const variants: Variants = useMemo(() => {
+      if (isReduced) {
+         return {
+            hidden: { marginLeft: 0, marginRight: 0, translateY: 0, opacity: 0, filter: "blur(0px)" },
+            visible: { marginLeft: 0, marginRight: 0, translateY: 0, opacity: 1, filter: "blur(0px)" },
+         };
+      }
+
+      if (isMobile) {
+         return {
+            hidden: { marginLeft: 0, marginRight: 0, translateY: "110%", opacity: 0, filter: "blur(4px)" },
+            visible: { marginLeft: 0, marginRight: 0, translateY: "0%", opacity: 1, filter: "blur(0px)" },
+         };
+      }
+
+      return {
+         hidden: {
+            marginLeft: "-18rem",
+            marginRight: "0rem",
+            translateY: 0,
+            opacity: 0,
+            filter: "blur(4px)",
+         },
+         visible: { marginLeft: 0, marginRight: "0.375rem", translateY: 0, opacity: 1, filter: "blur(0px)" },
+      };
+   }, [isMobile, isReduced]);
+
    if (typeof window === "undefined") return null;
 
    return (
@@ -121,22 +149,20 @@ export default function DatabasesSidebar() {
          {hide ? null : (
             <motion.aside
                layout
-               initial={{ marginLeft: "-18rem", marginRight: "0rem", opacity: 0, filter: "blur(4px)" }}
-               animate={{
-                  marginLeft: "0",
-                  marginRight: isMobile ? "0rem" : "0.375rem",
-                  opacity: 1,
-                  filter: "blur(0px)",
-               }}
-               exit={{ marginLeft: "-18rem", marginRight: "0rem", opacity: 0, filter: "blur(4px)" }}
+               initial="hidden"
+               animate="visible"
+               exit="hidden"
+               variants={variants}
                transition={{
                   type: "spring",
                   stiffness: 500,
                   damping: 37,
                }}
                className={cn(
-                  "bg-background isolate z-50 flex w-full max-w-72 shrink-0 grow flex-col self-stretch overflow-hidden rounded-lg shadow-xs ring-1 ring-gray-950/10 md:my-1",
-                  isMobile ? "absolute top-11 bottom-1 left-1" : "",
+                  "isolate z-50 flex shrink-0 grow flex-col self-stretch overflow-hidden rounded-lg border-1 border-gray-950/10 bg-gray-100 bg-clip-padding shadow-xs",
+                  isMobile
+                     ? "absolute top-11 right-2 bottom-2 left-2"
+                     : "my-2 max-h-[calc(100svh-1rem)] w-full max-w-72",
                )}
             >
                {/* <div className="h-11 self-stretch border-b border-b-border" /> */}

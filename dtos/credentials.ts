@@ -4,7 +4,11 @@ export type ICredentials = z.infer<typeof credentialsSchema>;
 export type CredentialsSchema = z.infer<typeof credentialsSchema>;
 
 export const credentialsSchema = z.object({
-   // schema: z.string().min(1, "Too small").default("public"),
+   schema: z
+      .string()
+      .trim()
+      .transform((x) => (x ? x : "public"))
+      .optional(),
    host: z.string().min(1, "Too small"),
    port: z.coerce.number().min(0, "Too small").max(65535, "Too big").optional().default(5432),
    database: z.string().min(1, "Too small"),

@@ -7,7 +7,7 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TooltipRoot, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { UserRound, Bolt, LogOut } from "lucide-react";
 import {
@@ -65,7 +65,7 @@ function Sidebar() {
                         {section.map((nav) => {
                            const isActive = isCurrentPath(nav.href);
                            return (
-                              <Tooltip key={nav.href}>
+                              <TooltipRoot key={nav.href}>
                                  <TooltipTrigger asChild>
                                     <Link
                                        href={nav.href}
@@ -99,7 +99,7 @@ function Sidebar() {
                                  <TooltipContent side="right" className="!pointer-events-none">
                                     {nav.label}
                                  </TooltipContent>
-                              </Tooltip>
+                              </TooltipRoot>
                            );
                         })}
                      </div>
@@ -244,6 +244,48 @@ export function SidebarIcon({ open }: { open: boolean }) {
                className="absolute top-[5px] bottom-[5px] left-[4px] w-[2px] rounded-full bg-current text-[inherit] transition-colors"
             />
          )}
+      </div>
+   );
+}
+
+export function SidebarMobileIcon({ open }: { open: boolean }) {
+   return (
+      <div className="relative grid size-5">
+         <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="lucide lucide-panel-left-icon lucide-panel-left relative size-full text-[inherit]"
+         >
+            <rect width="16" height="20" x="4" y="2" rx="3" />
+         </svg>
+         <motion.div
+            layoutId="sidebar-open-indicator"
+            animate={{
+               left: open ? 3 : 5,
+               right: open ? 3 : 5,
+               bottom: open ? 10 : 4,
+               opacity: open ? 1 : 0.7,
+            }}
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            className="absolute h-[2px] rounded-full bg-current text-[inherit]"
+         />
+         {/* {open ? (
+            
+         ) : (
+            <motion.div
+               animate={{ opacity: 0.7 }}
+               layoutId="sidebar-open-indicator"
+               transition={{ type: "spring", duration: 0.35, bounce: 0.35 }}
+               className="absolute right-[5px] bottom-[4px] left-[5px] h-[2px] rounded-full bg-current text-[inherit] transition-colors"
+            />
+         )} */}
       </div>
    );
 }

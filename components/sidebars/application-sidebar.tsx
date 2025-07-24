@@ -7,7 +7,7 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import Tooltip, { TooltipProvider } from "@/components/ui/tooltip";
 
 import { UserRound, Bolt, LogOut } from "lucide-react";
 import {
@@ -23,6 +23,8 @@ import { signOut, useSession } from "next-auth/react";
 import CommandMenu from "@/components/command-menu";
 import ThemeSelector from "@/components/sidebar-theme-selector";
 import { useStorage } from "@/hooks/use-storage";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { SidebarMobileIcon } from "../sidebar";
 
 const sections = [
    [{ href: "/dashboard", label: "Dashboard", icon: Gauge, toggle: false }],
@@ -34,6 +36,7 @@ const sections = [
 ] as const;
 
 function Sidebar() {
+   const isMobile = useIsMobile();
    const pathname = usePathname();
    const isCurrentPath = (href: string) => {
       return pathname.startsWith(href.split("/*")?.[0] ?? "");
@@ -59,14 +62,31 @@ function Sidebar() {
 
          <nav className="flex shrink-0 grow flex-row gap-2 p-1 md:flex-col md:p-1.5">
             <TooltipProvider delayDuration={0} skipDelayDuration={0} disableHoverableContent>
+               <Tooltip.Root>
+                  <Tooltip.Trigger asChild>
+                     <Button
+                        intent="ghost"
+                        className="group aria-selected:text-foreground relative isolation-auto order-1 grid aspect-square size-9 place-items-center rounded-md text-gray-600 hover:text-gray-800 md:order-none md:size-10"
+                        onClick={() => setHide(!hide)}
+                     >
+                        {isMobile ? <SidebarMobileIcon open={!hide} /> : <SidebarIcon open={!hide} />}
+                     </Button>
+                  </Tooltip.Trigger>
+                  <Tooltip.Content side="right">
+                     <span>Toggle sidebar</span>
+                     <div data-slot="kbd-group" className="-mr-1 ml-1 hidden space-x-0.5 text-xs md:inline-block">
+                        <kbd className="font-geist-sans rounded-sm bg-gray-700 px-1.25 py-px text-gray-100">S</kbd>
+                     </div>
+                  </Tooltip.Content>
+               </Tooltip.Root>
                {sections.map((section, idx) => {
                   return (
                      <div key={idx} className="flex shrink-0 flex-row gap-1 md:flex-col md:self-stretch">
                         {section.map((nav) => {
                            const isActive = isCurrentPath(nav.href);
                            return (
-                              <Tooltip key={nav.href}>
-                                 <TooltipTrigger asChild>
+                              <Tooltip.Root key={nav.href}>
+                                 <Tooltip.Trigger asChild>
                                     <Link
                                        href={nav.href}
                                        aria-selected={isActive || undefined}
@@ -88,8 +108,8 @@ function Sidebar() {
                                                 animate={{ opacity: 1 }}
                                                 exit={{ opacity: 0 }}
                                                 layoutId="sidebar-hover-selector"
-                                                className="bg-background pointer-events-none absolute inset-0 -z-10 size-full rounded-md shadow-xs"
-                                                transition={{ type: "spring", duration: 0.25, bounce: 0.2 }}
+                                                className="pointer-events-none absolute inset-0 -z-10 size-full rounded-md border border-gray-950/10 bg-gray-200 bg-clip-padding shadow-xs"
+                                                transition={{ type: "spring", stiffness: 400, damping: 35 }}
                                              />
                                           )}
                                        </AnimatePresence>
@@ -97,11 +117,11 @@ function Sidebar() {
                                        <nav.icon className="size-5 group-active:scale-95" strokeWidth={2} />
                                        <span className="sr-only">{nav.label}</span>
                                     </Link>
-                                 </TooltipTrigger>
-                                 <TooltipContent side="right" className="!pointer-events-none">
+                                 </Tooltip.Trigger>
+                                 <Tooltip.Content side="right" className="!pointer-events-none">
                                     {nav.label}
-                                 </TooltipContent>
-                              </Tooltip>
+                                 </Tooltip.Content>
+                              </Tooltip.Root>
                            );
                         })}
                      </div>

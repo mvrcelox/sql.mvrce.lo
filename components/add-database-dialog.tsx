@@ -15,15 +15,15 @@ import { Input } from "@/components/ui/input";
 import Label from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import databaseSchema from "@/dtos/databases.dto";
-import credentialsSchema from "@/dtos/credentials";
+import credentialsSchema, { CredentialsSchema } from "@/dtos/credentials";
 import { useMutation } from "@tanstack/react-query";
 import { ClipboardPaste, Loader2 } from "lucide-react";
-import { Controller, FieldErrors, FormProvider, useForm, useFormContext, useWatch } from "react-hook-form";
+import { Controller, FieldErrors, FormProvider, useForm, useFormContext } from "react-hook-form";
 import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
 import { useState } from "react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TooltipRoot, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { z } from "zod";
@@ -39,7 +39,7 @@ type CreateDatabaseSchema = z.infer<typeof createDatabaseSchema>;
 const createDatabaseSchema = databaseSchema.omit({ id: true, owner_id: true });
 
 const defaultValues: Partial<CreateDatabaseSchema> = {
-   // schema: "public",
+   schema: "public",
 };
 
 export default function AddDatabaseDialog({ children, onSuccess }: Props) {
@@ -58,13 +58,14 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
       handleSubmit,
       register,
       setValue,
+      setFocus,
       trigger,
       reset,
    } = form;
 
    const { mutate: test, isPending: isTesting } = useMutation({
       mutationKey: ["test-database-connection"],
-      mutationFn: async (values: CreateDatabaseSchema) => {
+      mutationFn: async (values: CredentialsSchema) => {
          clearErrors();
 
          const validation = await createDatabaseSchema.safeParseAsync(values);
@@ -149,6 +150,9 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
       entries.forEach(([key, value]) => {
          setValue(key, value);
       });
+
+      test(safe.data);
+      setFocus("name");
    }
 
    return (
@@ -203,7 +207,7 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
                                  }
                               />
                               <TooltipProvider delayDuration={0} disableHoverableContent>
-                                 <Tooltip>
+                                 <TooltipRoot>
                                     <TooltipTrigger asChild>
                                        <Button
                                           intent="outline"
@@ -221,7 +225,7 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
                                           The database has to been in your clipboard
                                        </span> */}
                                     </TooltipContent>
-                                 </Tooltip>
+                                 </TooltipRoot>
                               </TooltipProvider>
                            </div>
                         </div>
@@ -287,12 +291,10 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
                         </div>
                      </div>
 
-                     <Separator className="-mx-4 my-4" />
-
-                     <div className="mb-2 flex flex-row self-stretch">
+                     <div className="flex flex-row gap-2 self-stretch">
                         <div className="grid grow grid-cols-1 gap-1 sm:col-span-3">
-                           <Label required>Schema</Label>
-                           {/* <Input
+                           <Label>Schema</Label>
+                           <Input
                               intent="opaque2"
                               placeholder="public"
                               aria-invalid={!!errors?.schema}
@@ -302,9 +304,9 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
                                     ? "!border-red-500 !outline-red-500 dark:!border-red-600 dark:!outline-red-600"
                                     : undefined
                               }
-                           /> */}
+                           />
                         </div>
-                        <div className="flex items-center gap-3 px-3">
+                        <div className="mt-6 flex items-center gap-3 px-3">
                            <Label className="text-sm" htmlFor="ssl">
                               SSL
                            </Label>
@@ -326,6 +328,8 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
                            />
                         </div>
                      </div>
+
+                     <Separator className="-mx-4 my-4" />
 
                      <div className="grid grid-cols-1 gap-1">
                         <Label required>Name</Label>
@@ -385,20 +389,19 @@ export default function AddDatabaseDialog({ children, onSuccess }: Props) {
    );
 }
 
+const placeholders = ["Favorite database", "Super secret", "New backup db", "Dev/Prod database"];
 function NameInput() {
+   const random = Math.floor(Math.random() * placeholders.length);
    const {
-      control,
       formState: { errors },
       register,
    } = useFormContext<CreateDatabaseSchema>();
-
-   const database = useWatch({ control, name: "database", exact: true });
 
    return (
       <Input
          intent="opaque2"
          aria-invalid={!!errors?.name}
-         placeholder={database ?? "My favorite database"}
+         placeholder={placeholders[random]}
          {...register("name")}
          className={
             errors?.name ? "!border-red-500 !outline-red-500 dark:!border-red-600 dark:!outline-red-600" : undefined

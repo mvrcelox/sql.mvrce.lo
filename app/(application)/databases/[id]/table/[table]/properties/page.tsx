@@ -76,9 +76,9 @@ const getData = async (params: Params, searchParams: SearchParams) => {
          FROM pg_catalog.pg_statio_all_tables as st
          INNER JOIN pg_catalog.pg_description pgd on pgd.objoid = st.relid
          RIGHT JOIN information_schema.columns c on pgd.objsubid = c.ordinal_position and c.table_schema = st.schemaname and c.table_name = st.relname
-         WHERE c.table_schema = 'public' and c.table_name = $1
-         ORDER BY ${sort} ${ordenation} LIMIT $2`,
-         [params.table, limit],
+         WHERE c.table_schema = $2 and c.table_name = $1
+         ORDER BY ${sort} ${ordenation} LIMIT $3`,
+         [params.table, "public", limit],
       );
       if (!data) return;
       // const hiddenColumns: string[] = searchParams?.hide?.split(",") ?? [];
@@ -105,7 +105,7 @@ export default async function Page({
    const fields = data?.fields && typeof data?.fields === "object" ? JSON.parse(JSON.stringify(data?.fields)) : [];
 
    return (
-      <main className="flex flex-initial grow flex-col self-stretch overflow-hidden bg-gray-100">
+      <main className="flex flex-initial grow flex-col self-stretch contain-paint">
          <TableWrapper>
             <DataTable count={data?.rows?.length || 0} fields={fields} rows={data?.rows ?? []} editable={false} />
          </TableWrapper>
